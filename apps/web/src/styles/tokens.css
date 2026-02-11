@@ -1,0 +1,428 @@
+/**
+ * Hemisphere Design Tokens
+ *
+ * Stage-aware design tokens supporting the three learning stages:
+ * - Encounter (RH-Primary): Warm, organic, expansive
+ * - Analysis (LH-Primary): Cool, precise, structured
+ * - Return (RH-Primary, Enriched): Deep warm, reflective
+ *
+ * Based on: docs/design/04-ui-ux-design.md
+ */
+
+:root {
+  /* =============================================================================
+   * NEUTRAL / SHARED COLORS
+   * ========================================================================== */
+  --neutral-white: #ffffff;
+  --neutral-black: #000000;
+  --neutral-50: #fafafa;
+  --neutral-100: #f0f0f0;
+  --neutral-200: #e0e0e0;
+  --neutral-300: #c0c0c0;
+  --neutral-700: #404040;
+  --neutral-800: #262626;
+  --neutral-900: #171717;
+
+  /* =============================================================================
+   * SEMANTIC COLORS
+   * ========================================================================== */
+  --semantic-success: #4caf82;
+  --semantic-warning: #d4b85a;
+  --semantic-error: #d4845a;
+  --semantic-info: #4a9ede;
+  --semantic-focus-ring: rgb(74 158 222 / 0.5);
+
+  /* =============================================================================
+   * ENCOUNTER MODE (RH-Primary) -- Warm Spectrum
+   * Colors evoke warmth, curiosity, safety, and open exploration.
+   * Drawn from amber, terracotta, and deep twilight tones.
+   * ========================================================================== */
+
+  /* Backgrounds */
+  --encounter-bg-primary: #1c1612;
+  --encounter-bg-secondary: #2a2018;
+  --encounter-bg-light: #fff8f0;
+  --encounter-bg-light-secondary: #f5ede3;
+
+  /* Accents */
+  --encounter-accent-primary: #e8913a;
+  --encounter-accent-secondary: #c26e3a;
+  --encounter-accent-tertiary: #8b5e3c;
+
+  /* Text */
+  --encounter-text-primary: #f5e6d3;
+  --encounter-text-primary-light: #2a2018;
+  --encounter-text-secondary: #bfa88e;
+  --encounter-text-secondary-light: #7a6b5a;
+
+  /* Effects */
+  --encounter-glow: rgb(232 145 58 / 0.15);
+  --encounter-gradient-start: #2a1810;
+  --encounter-gradient-end: #1a1a2e;
+
+  /* =============================================================================
+   * ANALYSIS MODE (LH-Primary) -- Cool Spectrum
+   * Colors evoke clarity, focus, precision, and purposeful work.
+   * Drawn from slate, steel, and ice tones.
+   * ========================================================================== */
+
+  /* Backgrounds */
+  --analysis-bg-primary: #0f1419;
+  --analysis-bg-secondary: #1a2332;
+  --analysis-bg-light: #f5f7fa;
+  --analysis-bg-light-secondary: #ebeef3;
+
+  /* Accents */
+  --analysis-accent-primary: #4a9ede;
+  --analysis-accent-secondary: #3b7bbe;
+  --analysis-accent-tertiary: #2c5f8a;
+
+  /* Feedback colors */
+  --analysis-correct: #4caf82;
+  --analysis-incorrect: #d4845a;
+  --analysis-partial: #d4b85a;
+
+  /* Text */
+  --analysis-text-primary: #e8edf3;
+  --analysis-text-primary-light: #1a2332;
+  --analysis-text-secondary: #8899aa;
+  --analysis-text-secondary-light: #5a6b7a;
+
+  /* Borders */
+  --analysis-border: #2a3a4e;
+  --analysis-border-light: #d0d8e3;
+
+  /* =============================================================================
+   * RETURN MODE (RH-Primary, Enriched) -- Warm Deep Spectrum
+   * Related to Encounter but deeper, richer, more saturated.
+   * Signals "you have been here before, but now you see more."
+   * ========================================================================== */
+
+  /* Backgrounds */
+  --return-bg-primary: #18121c;
+  --return-bg-secondary: #241a2a;
+  --return-bg-light: #fdf5f8;
+  --return-bg-light-secondary: #f2e8ee;
+
+  /* Accents */
+  --return-accent-primary: #d4724a;
+  --return-accent-secondary: #a85c8a;
+  --return-accent-tertiary: #7a5c8a;
+
+  /* Text */
+  --return-text-primary: #f0e3ec;
+  --return-text-primary-light: #2a1a2e;
+  --return-text-secondary: #b8a0b0;
+  --return-text-secondary-light: #7a6478;
+
+  /* Effects */
+  --return-glow: rgb(212 114 74 / 0.12);
+  --return-gradient-start: #1a1020;
+  --return-gradient-end: #2a1810;
+
+  /* =============================================================================
+   * TRANSITION COLORS
+   * Intermediate colors used during stage crossfades (1.5-2 seconds)
+   * ========================================================================== */
+  --transition-encounter-to-analysis: #1a1e24;
+  --transition-analysis-to-return: #161420;
+
+  /* =============================================================================
+   * TYPOGRAPHY
+   * Font families shift between stages to reinforce attentional mode change.
+   * RH stages: serif (organic, flowing, humanistic)
+   * LH stages: sans-serif (clean, geometric, precise)
+   * ========================================================================== */
+
+  /* Font Families */
+  --font-encounter: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-analysis: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
+  --font-display: 'Source Serif 4', Georgia, serif;
+
+  /* Type Scale (Major Third: 1.250 ratio) */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-md: 1.125rem;   /* 18px */
+  --text-lg: 1.25rem;    /* 20px */
+  --text-xl: 1.5rem;     /* 24px */
+  --text-2xl: 1.875rem;  /* 30px */
+  --text-3xl: 2.25rem;   /* 36px */
+  --text-4xl: 3rem;      /* 48px */
+
+  /* Line Heights */
+  --leading-tight: 1.1;
+  --leading-snug: 1.2;
+  --leading-normal: 1.3;
+  --leading-relaxed: 1.4;
+  --leading-loose: 1.5;
+  --leading-extra-loose: 1.6;
+  --leading-encounter: 1.7;
+
+  /* Font Weights */
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* =============================================================================
+   * SPACING
+   * Base unit: 4px. All spacing values are multiples of this unit.
+   * ========================================================================== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* =============================================================================
+   * CORNER RADII
+   * Shape language shifts between stages to reinforce RH/LH distinction.
+   * ========================================================================== */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* =============================================================================
+   * ELEVATION & SHADOW
+   * ========================================================================== */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 8px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shadow-encounter-glow: 0 0 40px rgb(232 145 58 / 0.08);
+  --shadow-return-glow: 0 0 40px rgb(212 114 74 / 0.06);
+
+  /* =============================================================================
+   * MOTION & ANIMATION
+   * Motion timing and easing curves communicate the current attentional mode.
+   * ========================================================================== */
+
+  /* Encounter (RH) Motion - slow, organic, flowing */
+  --ease-encounter: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --duration-encounter-short: 400ms;
+  --duration-encounter-medium: 600ms;
+  --duration-encounter-long: 800ms;
+
+  /* Analysis (LH) Motion - quick, precise, mechanical */
+  --ease-analysis: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --duration-analysis-short: 150ms;
+  --duration-analysis-medium: 200ms;
+  --duration-analysis-long: 300ms;
+
+  /* Return (RH) Motion - slowest, contemplative, expansive */
+  --ease-return: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-return-short: 500ms;
+  --duration-return-medium: 800ms;
+  --duration-return-long: 1000ms;
+
+  /* Stage Transitions */
+  --duration-stage-transition: 1500ms;
+  --duration-stage-transition-long: 2000ms;
+}
+
+/* =============================================================================
+ * DARK MODE (DEFAULT)
+ * Stage-specific color themes applied via data attributes
+ * ========================================================================== */
+
+[data-stage="encounter"] {
+  --bg-primary: var(--encounter-bg-primary);
+  --bg-secondary: var(--encounter-bg-secondary);
+  --text-primary: var(--encounter-text-primary);
+  --text-secondary: var(--encounter-text-secondary);
+  --accent-primary: var(--encounter-accent-primary);
+  --accent-secondary: var(--encounter-accent-secondary);
+  --accent-tertiary: var(--encounter-accent-tertiary);
+  --glow: var(--encounter-glow);
+  --shadow-glow: var(--shadow-encounter-glow);
+  --gradient-start: var(--encounter-gradient-start);
+  --gradient-end: var(--encounter-gradient-end);
+
+  /* Typography */
+  --font-body: var(--font-encounter);
+  --text-body: var(--text-md);
+  --leading-body: var(--leading-extra-loose);
+
+  /* Motion */
+  --ease: var(--ease-encounter);
+  --duration-short: var(--duration-encounter-short);
+  --duration-medium: var(--duration-encounter-medium);
+  --duration-long: var(--duration-encounter-long);
+
+  /* Shape */
+  --radius-card: var(--radius-xl);
+  --radius-element: var(--radius-2xl);
+
+  /* Spacing multiplier (125% of base) */
+  --spacing-multiplier: 1.25;
+}
+
+[data-stage="analysis"] {
+  --bg-primary: var(--analysis-bg-primary);
+  --bg-secondary: var(--analysis-bg-secondary);
+  --text-primary: var(--analysis-text-primary);
+  --text-secondary: var(--analysis-text-secondary);
+  --accent-primary: var(--analysis-accent-primary);
+  --accent-secondary: var(--analysis-accent-secondary);
+  --accent-tertiary: var(--analysis-accent-tertiary);
+  --border: var(--analysis-border);
+
+  /* Feedback colors */
+  --color-correct: var(--analysis-correct);
+  --color-incorrect: var(--analysis-incorrect);
+  --color-partial: var(--analysis-partial);
+
+  /* Typography */
+  --font-body: var(--font-analysis);
+  --text-body: var(--text-base);
+  --leading-body: var(--leading-extra-loose);
+
+  /* Motion */
+  --ease: var(--ease-analysis);
+  --duration-short: var(--duration-analysis-short);
+  --duration-medium: var(--duration-analysis-medium);
+  --duration-long: var(--duration-analysis-long);
+
+  /* Shape */
+  --radius-card: var(--radius-md);
+  --radius-element: var(--radius-sm);
+
+  /* Spacing multiplier (100% of base) */
+  --spacing-multiplier: 1;
+}
+
+[data-stage="return"] {
+  --bg-primary: var(--return-bg-primary);
+  --bg-secondary: var(--return-bg-secondary);
+  --text-primary: var(--return-text-primary);
+  --text-secondary: var(--return-text-secondary);
+  --accent-primary: var(--return-accent-primary);
+  --accent-secondary: var(--return-accent-secondary);
+  --accent-tertiary: var(--return-accent-tertiary);
+  --glow: var(--return-glow);
+  --shadow-glow: var(--shadow-return-glow);
+  --gradient-start: var(--return-gradient-start);
+  --gradient-end: var(--return-gradient-end);
+
+  /* Typography */
+  --font-body: var(--font-encounter);
+  --text-body: var(--text-md);
+  --leading-body: var(--leading-encounter);
+
+  /* Motion */
+  --ease: var(--ease-return);
+  --duration-short: var(--duration-return-short);
+  --duration-medium: var(--duration-return-medium);
+  --duration-long: var(--duration-return-long);
+
+  /* Shape */
+  --radius-card: var(--radius-lg);
+  --radius-element: var(--radius-xl);
+
+  /* Spacing multiplier (135% of base) */
+  --spacing-multiplier: 1.35;
+}
+
+/* =============================================================================
+ * LIGHT MODE
+ * Applied when [data-theme="light"] is present
+ * ========================================================================== */
+
+[data-theme="light"][data-stage="encounter"] {
+  --bg-primary: var(--encounter-bg-light);
+  --bg-secondary: var(--encounter-bg-light-secondary);
+  --text-primary: var(--encounter-text-primary-light);
+  --text-secondary: var(--encounter-text-secondary-light);
+}
+
+[data-theme="light"][data-stage="analysis"] {
+  --bg-primary: var(--analysis-bg-light);
+  --bg-secondary: var(--analysis-bg-light-secondary);
+  --text-primary: var(--analysis-text-primary-light);
+  --text-secondary: var(--analysis-text-secondary-light);
+  --border: var(--analysis-border-light);
+}
+
+[data-theme="light"][data-stage="return"] {
+  --bg-primary: var(--return-bg-light);
+  --bg-secondary: var(--return-bg-light-secondary);
+  --text-primary: var(--return-text-primary-light);
+  --text-secondary: var(--return-text-secondary-light);
+}
+
+/* =============================================================================
+ * STAGE TRANSITIONS
+ * Smooth crossfades between stages (1.5-2 seconds)
+ * ========================================================================== */
+
+[data-stage-transition="encounter-to-analysis"] {
+  --bg-primary: var(--transition-encounter-to-analysis);
+}
+
+[data-stage-transition="analysis-to-return"] {
+  --bg-primary: var(--transition-analysis-to-return);
+}
+
+/* =============================================================================
+ * BASE STYLES
+ * Apply stage-aware tokens to common elements
+ * ========================================================================== */
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body, var(--font-analysis));
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  transition:
+    background-color var(--duration-stage-transition) var(--ease-encounter),
+    color var(--duration-stage-transition) var(--ease-encounter);
+}
+
+/* Typography elements inherit stage-aware properties */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+
+p {
+  color: var(--text-primary);
+  margin-bottom: calc(var(--space-4) * var(--spacing-multiplier, 1));
+}
+
+a {
+  color: var(--accent-primary);
+  transition: color var(--duration-short) var(--ease);
+}
+
+a:hover {
+  color: var(--accent-secondary);
+}
+
+/* Focus states */
+:focus-visible {
+  outline: 2px solid var(--semantic-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

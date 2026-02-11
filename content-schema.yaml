@@ -1,0 +1,422 @@
+# Hemisphere Content Model - YAML Schema Definition
+# Version: 1.0
+# Date: 2026-02-11
+#
+# This schema defines the structure for learning content in the Hemisphere app,
+# implementing the RH-->LH-->RH (Right Hemisphere -> Left Hemisphere -> Right Hemisphere)
+# learning loop based on McGilchrist's hemisphere theory.
+#
+# The schema is organized around:
+# - Topics: Top-level learning modules
+# - Learning Stages: Encounter (RH), Analysis (LH), Return (RH)
+# - Content Items: Individual learning activities within each stage
+# - Interactions: User engagement prompts and exercises
+# - Media: Visual, audio, and haptic resources
+
+# JSON Schema Draft 7 for YAML validation
+$schema: http://json-schema.org/draft-07/schema#
+title: Hemisphere Content Model
+description: Schema for hemisphere-based learning content with RH-LH-RH loop
+
+definitions:
+  # Media Reference Schema
+  mediaReference:
+    type: object
+    properties:
+      type:
+        type: string
+        enum: [image, audio, video, haptic, interactive]
+        description: Type of media asset
+      url:
+        type: string
+        format: uri
+        description: URL or path to media file
+      alt:
+        type: string
+        description: Alternative text description (required for images)
+      caption:
+        type: string
+        description: Optional caption text
+      duration:
+        type: number
+        description: Duration in seconds (for audio/video)
+      attribution:
+        type: string
+        description: Credit/attribution for the media
+      artistNotes:
+        type: string
+        description: Instructions for content creators/artists
+    required: [type, url]
+    additionalProperties: false
+
+  # Interaction Schema
+  interaction:
+    type: object
+    properties:
+      id:
+        type: string
+        description: Unique identifier for the interaction
+      type:
+        type: string
+        enum:
+          - free_recall
+          - cued_recall
+          - multiple_choice
+          - audio_recognition
+          - categorization
+          - drag_drop
+          - sequencing
+          - fill_blank
+          - free_text
+          - prediction
+          - reflection
+          - creative_synthesis
+          - transfer_challenge
+          - self_assessment
+        description: Type of interaction
+      prompt:
+        type: string
+        description: Question or instruction text
+      options:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            text:
+              type: string
+            isCorrect:
+              type: boolean
+            feedback:
+              type: string
+          required: [id, text]
+        description: Answer options for multiple choice or categorization
+      correctAnswer:
+        oneOf:
+          - type: string
+          - type: array
+            items:
+              type: string
+        description: Correct answer(s) for validation
+      feedback:
+        type: object
+        properties:
+          correct:
+            type: string
+          partial:
+            type: string
+          incorrect:
+            type: string
+          general:
+            type: string
+        description: Feedback messages for different response types
+      modelAnswer:
+        type: string
+        description: Example answer to show after submission (for open-ended)
+      allowSkip:
+        type: boolean
+        default: false
+        description: Whether learner can skip this interaction
+      timeLimit:
+        type: number
+        description: Time limit in seconds (optional)
+      media:
+        $ref: '#/definitions/mediaReference'
+        description: Associated media (e.g., audio clip for recognition)
+      tags:
+        type: array
+        items:
+          type: string
+        description: Tags for spaced repetition and categorization
+    required: [id, type, prompt]
+    additionalProperties: false
+
+  # Content Item Schema
+  contentItem:
+    type: object
+    properties:
+      id:
+        type: string
+        description: Unique identifier for content item
+      type:
+        type: string
+        enum:
+          - narrative
+          - concept_card
+          - visual_overview
+          - spatial_map
+          - activity
+          - practice
+          - reflection_prompt
+          - transition
+        description: Type of content item
+      title:
+        type: string
+        description: Title of the content item
+      content:
+        type: string
+        description: Main text content (supports markdown)
+      duration:
+        type: number
+        description: Estimated duration in seconds
+      media:
+        type: array
+        items:
+          $ref: '#/definitions/mediaReference'
+        description: Associated media assets
+      interactions:
+        type: array
+        items:
+          $ref: '#/definitions/interaction'
+        description: Interactive elements within this content item
+      layout:
+        type: string
+        enum: [full_bleed, card, split, grid, spatial]
+        default: card
+        description: UI layout style for this content
+      emotionalTone:
+        type: string
+        enum: [wonder, curiosity, focus, reflection, celebration, neutral]
+        description: Intended emotional engagement (RH stages)
+      metadata:
+        type: object
+        properties:
+          hemisphere:
+            type: string
+            enum: [RH, LH, balanced]
+            description: Primary hemisphere engagement
+          difficulty:
+            type: string
+            enum: [novice, intermediate, advanced]
+          adaptiveVariants:
+            type: object
+            description: Alternative versions for different skill levels
+        additionalProperties: true
+    required: [id, type, content]
+    additionalProperties: false
+
+  # Learning Stage Schema
+  learningStage:
+    type: object
+    properties:
+      stage:
+        type: string
+        enum: [encounter, analysis, return]
+        description: Which stage of the RH-LH-RH loop
+      name:
+        type: string
+        description: Display name for the stage
+      description:
+        type: string
+        description: Brief description of the stage's purpose
+      estimatedDuration:
+        type: number
+        description: Total estimated duration in seconds
+      uiTheme:
+        type: object
+        properties:
+          colorPalette:
+            type: string
+            enum: [warm_immersive, cool_focused, reflective_open]
+            description: Visual theme for the stage
+          typography:
+            type: string
+            enum: [serif_narrative, sans_structured]
+          layout:
+            type: string
+            enum: [expansive, grid, open]
+          timing:
+            type: string
+            enum: [untimed, paced, flexible]
+        description: UI/UX characteristics for the stage
+      transition:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: [crossfade, shift, gentle]
+          duration:
+            type: number
+            description: Transition duration in seconds
+          bridgeText:
+            type: string
+            description: Text shown during transition
+          hapticCue:
+            type: string
+            enum: [pulse, none]
+        description: Transition configuration to next stage
+      contentItems:
+        type: array
+        items:
+          $ref: '#/definitions/contentItem'
+        minItems: 1
+        description: Ordered list of content items in this stage
+    required: [stage, contentItems]
+    additionalProperties: false
+
+  # Topic/Module Schema
+  topic:
+    type: object
+    properties:
+      id:
+        type: string
+        pattern: '^[a-z0-9-]+$'
+        description: Unique topic identifier (slug format)
+      version:
+        type: string
+        pattern: '^\d+\.\d+\.\d+$'
+        description: Semantic version of the topic content
+      metadata:
+        type: object
+        properties:
+          title:
+            type: string
+            description: Display title of the topic
+          subtitle:
+            type: string
+            description: Optional subtitle or tagline
+          summary:
+            type: string
+            description: Brief summary (1-2 sentences)
+          subject:
+            type: string
+            description: Subject area (e.g., music, economics, biology)
+          template:
+            type: string
+            enum:
+              - conceptual
+              - procedural
+              - narrative_historical
+              - creative_systems
+              - problem_solving
+            description: Learning template type
+          targetAudience:
+            type: string
+            enum: [general, novice, intermediate, advanced]
+            default: general
+          estimatedDuration:
+            type: number
+            description: Total estimated duration in minutes
+          prerequisites:
+            type: array
+            items:
+              type: string
+            description: Topic IDs that should be completed first
+          tags:
+            type: array
+            items:
+              type: string
+            description: Searchable tags
+          authors:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                role:
+                  type: string
+              required: [name]
+          createdAt:
+            type: string
+            format: date-time
+          updatedAt:
+            type: string
+            format: date-time
+        required: [title, summary, subject, template, estimatedDuration]
+        additionalProperties: true
+      learningObjectives:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            objective:
+              type: string
+            bloom:
+              type: string
+              enum: [remember, understand, apply, analyze, evaluate, create]
+              description: Bloom's taxonomy level
+          required: [id, objective, bloom]
+        minItems: 1
+        description: Learning objectives for the topic
+      stages:
+        type: object
+        properties:
+          encounter:
+            $ref: '#/definitions/learningStage'
+          analysis:
+            $ref: '#/definitions/learningStage'
+          return:
+            $ref: '#/definitions/learningStage'
+        required: [encounter, analysis, return]
+        description: The three stages of the RH-LH-RH loop
+      assessments:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            type:
+              type: string
+              enum: [formative, summative, transfer, creative]
+            timing:
+              type: string
+              enum: [during, after, delayed]
+            interactions:
+              type: array
+              items:
+                $ref: '#/definitions/interaction'
+          required: [id, type, interactions]
+        description: Assessment activities
+      knowledgeGraph:
+        type: object
+        properties:
+          nodes:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                label:
+                  type: string
+                type:
+                  type: string
+                  enum: [concept, skill, fact, relationship]
+              required: [id, label]
+          edges:
+            type: array
+            items:
+              type: object
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+                relationship:
+                  type: string
+                  enum: [prerequisite, related, part_of, example_of, contrasts_with]
+              required: [from, to, relationship]
+        description: Knowledge graph for this topic showing concept relationships
+    required: [id, version, metadata, learningObjectives, stages]
+    additionalProperties: false
+
+# Root Schema
+type: object
+properties:
+  schemaVersion:
+    type: string
+    const: '1.0'
+    description: Version of the content schema specification
+  topics:
+    type: array
+    items:
+      $ref: '#/definitions/topic'
+    minItems: 1
+    description: Collection of learning topics
+required: [schemaVersion, topics]
+additionalProperties: false
