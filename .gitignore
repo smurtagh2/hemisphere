@@ -1,0 +1,22 @@
+# JavaScript dependencies
+node_modules/
+
+# Build artifacts
+.turbo/
+dist/
+build/
+.next/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript incremental artifacts
+*.tsbuildinfo
