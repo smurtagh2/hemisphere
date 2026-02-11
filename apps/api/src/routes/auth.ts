@@ -3,7 +3,8 @@ import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { SignJWT, jwtVerify } from 'jose';
 import { db, schema } from '@hemisphere/db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
+import { randomBytes } from 'crypto';
 
 export const authRoutes = new Hono();
 
@@ -19,19 +20,44 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
 // JWT configuration
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'hemisphere-dev-secret-change-in-production'
 );
-const JWT_EXPIRATION = '7d'; // 7 days
+const ACCESS_TOKEN_EXPIRATION = '15m'; // 15 minutes
+const REFRESH_TOKEN_EXPIRATION_DAYS = 30; // 30 days
 
-// Helper function to generate JWT
-async function generateToken(userId: string, email: string, role: string) {
+// Helper function to generate access token
+async function generateAccessToken(userId: string, email: string, role: string) {
   const token = await new SignJWT({ userId, email, role })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(JWT_EXPIRATION)
+    .setExpirationTime(ACCESS_TOKEN_EXPIRATION)
     .sign(JWT_SECRET);
+
+  return token;
+}
+
+// Helper function to generate refresh token
+function generateRefreshToken(): string {
+  return randomBytes(64).toString('hex');
+}
+
+// Helper function to create refresh token in database
+async function createRefreshToken(userId: string): Promise<string> {
+  const token = generateRefreshToken();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRATION_DAYS);
+
+  await db.insert(schema.refreshTokens).values({
+    userId,
+    token,
+    expiresAt,
+  });
 
   return token;
 }
@@ -100,8 +126,9 @@ authRoutes.post('/signup', async (c) => {
         createdAt: schema.users.createdAt,
       });
 
-    // Generate JWT token
-    const token = await generateToken(newUser.id, newUser.email, newUser.role);
+    // Generate access and refresh tokens
+    const accessToken = await generateAccessToken(newUser.id, newUser.email, newUser.role);
+    const refreshToken = await createRefreshToken(newUser.id);
 
     return c.json(
       {
@@ -113,7 +140,8 @@ authRoutes.post('/signup', async (c) => {
           role: newUser.role,
           createdAt: newUser.createdAt,
         },
-        token,
+        accessToken,
+        refreshToken,
       },
       201
     );
@@ -201,8 +229,9 @@ authRoutes.post('/login', async (c) => {
       .set({ lastLoginAt: new Date() })
       .where(eq(schema.users.id, user.id));
 
-    // Generate JWT token
-    const token = await generateToken(user.id, user.email, user.role);
+    // Generate access and refresh tokens
+    const accessToken = await generateAccessToken(user.id, user.email, user.role);
+    const refreshToken = await createRefreshToken(user.id);
 
     return c.json({
       message: 'Login successful',
@@ -215,7 +244,8 @@ authRoutes.post('/login', async (c) => {
         timezone: user.timezone,
         lastLoginAt: user.lastLoginAt,
       },
-      token,
+      accessToken,
+      refreshToken,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -288,6 +318,188 @@ authRoutes.get('/verify', async (c) => {
         message: 'Token verification failed',
       },
       401
+    );
+  }
+});
+
+/**
+ * POST /api/auth/refresh
+ * Refresh access token using refresh token with rotation
+ */
+authRoutes.post('/refresh', async (c) => {
+  try {
+    // Parse and validate request body
+    const body = await c.req.json();
+    const result = refreshSchema.safeParse(body);
+
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: result.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        },
+        400
+      );
+    }
+
+    const { refreshToken } = result.data;
+
+    // Find refresh token in database
+    const [tokenRecord] = await db
+      .select()
+      .from(schema.refreshTokens)
+      .where(eq(schema.refreshTokens.token, refreshToken))
+      .limit(1);
+
+    if (!tokenRecord) {
+      return c.json(
+        {
+          error: 'Invalid token',
+          message: 'Refresh token not found',
+        },
+        401
+      );
+    }
+
+    // Check if token is revoked
+    if (tokenRecord.revokedAt) {
+      // Token reuse detected - revoke all tokens for this user
+      await db
+        .update(schema.refreshTokens)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(schema.refreshTokens.userId, tokenRecord.userId),
+            eq(schema.refreshTokens.revokedAt, null as any)
+          )
+        );
+
+      return c.json(
+        {
+          error: 'Token reuse detected',
+          message: 'All tokens have been revoked for security. Please log in again.',
+        },
+        401
+      );
+    }
+
+    // Check if token is expired
+    if (tokenRecord.expiresAt < new Date()) {
+      return c.json(
+        {
+          error: 'Token expired',
+          message: 'Refresh token has expired. Please log in again.',
+        },
+        401
+      );
+    }
+
+    // Get user information
+    const [user] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, tokenRecord.userId))
+      .limit(1);
+
+    if (!user || !user.isActive) {
+      return c.json(
+        {
+          error: 'Invalid user',
+          message: 'User not found or inactive',
+        },
+        401
+      );
+    }
+
+    // Generate new tokens
+    const newAccessToken = await generateAccessToken(user.id, user.email, user.role);
+    const newRefreshToken = await createRefreshToken(user.id);
+
+    // Revoke old refresh token and mark replacement
+    await db
+      .update(schema.refreshTokens)
+      .set({
+        revokedAt: new Date(),
+        replacedBy: newRefreshToken,
+      })
+      .where(eq(schema.refreshTokens.id, tokenRecord.id));
+
+    return c.json({
+      message: 'Token refreshed successfully',
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        message: 'An error occurred during token refresh',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Revoke refresh token and log out user
+ */
+authRoutes.post('/logout', async (c) => {
+  try {
+    // Parse request body
+    const body = await c.req.json();
+    const result = refreshSchema.safeParse(body);
+
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: result.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        },
+        400
+      );
+    }
+
+    const { refreshToken } = result.data;
+
+    // Find and revoke refresh token
+    const [tokenRecord] = await db
+      .select()
+      .from(schema.refreshTokens)
+      .where(eq(schema.refreshTokens.token, refreshToken))
+      .limit(1);
+
+    if (tokenRecord && !tokenRecord.revokedAt) {
+      await db
+        .update(schema.refreshTokens)
+        .set({ revokedAt: new Date() })
+        .where(eq(schema.refreshTokens.id, tokenRecord.id));
+    }
+
+    return c.json({
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return c.json(
+      {
+        error: 'Internal server error',
+        message: 'An error occurred during logout',
+      },
+      500
     );
   }
 });

@@ -1,4 +1,5 @@
 export * from './users';
+export * from './refresh-tokens';
 export * from './topics';
 export * from './content-items';
 export * from './sessions';

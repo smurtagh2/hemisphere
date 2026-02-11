@@ -1,0 +1,161 @@
+name: Content Validation
+
+on:
+  pull_request:
+    paths:
+      - 'content/**/*.yaml'
+      - 'content/**/*.yml'
+      - 'content-schema.yaml'
+      - 'scripts/validate-content.ts'
+  push:
+    branches:
+      - main
+    paths:
+      - 'content/**/*.yaml'
+      - 'content/**/*.yml'
+      - 'content-schema.yaml'
+      - 'scripts/validate-content.ts'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Content Files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate content files
+        id: validate
+        run: pnpm validate-content:ci
+        continue-on-error: true
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-validation-report
+          path: |
+            validation-report.json
+            validation-report.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Comment on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            // Run validation again to get text report
+            let report = '';
+            try {
+              execSync('pnpm validate-content --report=text', {
+                encoding: 'utf8',
+                stdio: 'pipe'
+              });
+            } catch (error) {
+              report = error.stdout || error.message;
+            }
+
+            const body = `## Content Validation Failed
+
+            The content validation check has failed. Please review and fix the errors below:
+
+            \`\`\`
+            ${report}
+            \`\`\`
+
+            ### How to Fix
+
+            1. Review the validation errors above
+            2. Fix the errors in your content files
+            3. Run \`pnpm validate-content\` locally to verify
+            4. Push your changes
+
+            ### Local Development
+
+            To validate your content files locally:
+
+            \`\`\`bash
+            # Validate all files
+            pnpm validate-content
+
+            # Watch mode (validates on save)
+            pnpm validate-content:watch
+
+            # Validate specific file
+            pnpm validate-content content/topics/your-file.yaml
+            \`\`\`
+
+            For more information, see the [scripts README](./scripts/README.md).
+            `;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail workflow if validation failed
+        if: steps.validate.outcome == 'failure'
+        run: exit 1
+
+  validate-schema:
+    name: Validate Schema File
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate YAML syntax
+        run: |
+          npx js-yaml content-schema.yaml > /dev/null
+          echo "✅ Schema YAML is valid"
+
+      - name: Check schema version
+        run: |
+          VERSION=$(npx js-yaml content-schema.yaml | jq -r '.properties.schemaVersion.const')
+          if [ "$VERSION" = "1.0" ]; then
+            echo "✅ Schema version is 1.0"
+          else
+            echo "❌ Schema version mismatch: expected 1.0, got $VERSION"
+            exit 1
+          fi

@@ -292,6 +292,22 @@
       color var(--duration-stage-transition) var(--ease-encounter),
       font-family var(--duration-stage-transition) var(--ease-encounter);
   }
+
+  /* Indeterminate progress animation */
+  @keyframes indeterminate {
+    0% {
+      width: 30%;
+      margin-left: -30%;
+    }
+    50% {
+      width: 30%;
+      margin-left: 100%;
+    }
+    100% {
+      width: 30%;
+      margin-left: -30%;
+    }
+  }
 }
 
 /* =============================================================================

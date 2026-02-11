@@ -5,3 +5,5 @@
 
 export * from './types';
 export * from './utils';
+export * from './session-state-machine';
+export * from './session-state-reducer';
