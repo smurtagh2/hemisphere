@@ -1,0 +1,714 @@
+# Example Topic: The Hidden Architecture of Music - Harmony and Intervals
+# Template: Creative/Systems
+# Based on the sample content from 05-sample-content.md
+
+schemaVersion: '1.0'
+
+topics:
+  - id: harmony-intervals
+    version: 1.0.0
+
+    metadata:
+      title: The Hidden Architecture of Music
+      subtitle: How harmony works in Western music
+      summary: Discover how simple mathematical ratios create the emotional power of music, from Pythagoras's ancient experiments to modern pop songs.
+      subject: music
+      template: creative_systems
+      targetAudience: general
+      estimatedDuration: 16
+      prerequisites: []
+      tags:
+        - music
+        - harmony
+        - intervals
+        - chords
+        - mathematics
+        - acoustics
+      authors:
+        - name: Hemisphere Content Team
+          role: author
+      createdAt: '2026-02-11T00:00:00Z'
+      updatedAt: '2026-02-11T00:00:00Z'
+
+    learningObjectives:
+      - id: obj-1
+        objective: Distinguish consonant from dissonant intervals by ear
+        bloom: understand
+      - id: obj-2
+        objective: Explain the relationship between mathematical ratios and musical consonance
+        bloom: understand
+      - id: obj-3
+        objective: Identify major, minor, and diminished chords by sound quality
+        bloom: analyze
+      - id: obj-4
+        objective: Construct a simple chord progression that conveys emotional narrative
+        bloom: create
+
+    stages:
+      # === ENCOUNTER STAGE (RH-Primary) ===
+      encounter:
+        stage: encounter
+        name: The Encounter
+        description: Meet harmony as a living whole through narrative and sensory experience
+        estimatedDuration: 240
+
+        uiTheme:
+          colorPalette: warm_immersive
+          typography: serif_narrative
+          layout: expansive
+          timing: untimed
+
+        transition:
+          type: crossfade
+          duration: 1.5
+          bridgeText: Now let's look more closely at what's happening inside those sounds.
+          hapticCue: pulse
+
+        contentItems:
+          # Activity 1: The Hook
+          - id: enc-hook
+            type: narrative
+            title: The Hook
+            content: |
+              Two notes played together can make you feel safe.
+
+              Two different notes can make you feel uneasy.
+
+              Nobody taught you this. You knew it before you had words.
+            duration: 45
+            media:
+              - type: image
+                url: /assets/images/pianist-hands-warmlight.jpg
+                alt: Top-down photograph of two relaxed hands resting on piano keys with warm amber lighting
+                caption: ''
+                artistNotes: Top-down photograph of two hands resting on piano keys. The hands should be relaxed, not performing—suggesting contemplation rather than virtuosity. Warm, amber lighting from the left. Shallow depth of field so the keys in the background blur. The overall mood is intimate and inviting, not intimidating.
+              - type: audio
+                url: /assets/audio/perfect-fifth-minor-second.mp3
+                alt: Piano playing perfect fifth (C-G) followed by minor second (C-Db)
+                duration: 8
+            layout: full_bleed
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+              difficulty: novice
+
+          # Activity 2: The Narrative Frame
+          - id: enc-narrative
+            type: narrative
+            title: The Narrative Frame
+            content: |
+              ## Pythagoras and the Blacksmith
+
+              Around 500 BC, Pythagoras walked past a blacksmith's shop and stopped. The hammers striking the anvils were making sounds that blended beautifully together—and some that clashed. He went inside and started experimenting.
+
+              He discovered something extraordinary: when you divide a vibrating string in simple ratios—half, two-thirds, three-quarters—the sounds it makes feel *right* together. The simpler the ratio, the more consonant the combination. Mathematics and beauty were the same thing.
+
+              Twenty-five centuries later, every pop song, film score, and lullaby still follows the same principle. The chord progressions that make you feel triumph, heartbreak, or suspense are all built from the same simple ratios Pythagoras found in a blacksmith's shop.
+            duration: 90
+            media:
+              - type: image
+                url: /assets/images/pythagoras-blacksmith.jpg
+                alt: Illustration of ancient Greek figure seated by river at dusk with glowing blacksmith forge in background
+                artistNotes: Pythagoras scene. Greek figure in simple robes, seated on a stone by a river. Background - a blacksmith's forge with orange glow, silhouette of a smith with raised hammer. Dusk sky, purples and golds. Style - painterly, loose brushstrokes, warm palette. Not historically precise—evocative, not documentary.
+              - type: image
+                url: /assets/images/pythagoras-monochord.jpg
+                alt: Same figure holding a monochord with the ratio 2:1 floating near the string
+                artistNotes: Same figure, now indoors or in an open colonnade. Holding a monochord (a single string stretched between two wooden bridges). The ratio "2:1" appears as hand-written text floating near the string, as if chalked in the air. Same painterly style.
+              - type: image
+                url: /assets/images/modern-studio.jpg
+                alt: Person at mixing console in modern recording studio with warm lighting
+                artistNotes: Modern recording studio. A person (gender-neutral, any ethnicity) sits at a large mixing console. Through the glass, a musician is visible with a guitar. Same painterly warmth as the Pythagoras scenes—the visual rhyme between ancient and modern is the point.
+            interactions:
+              - id: enc-predict
+                type: prediction
+                prompt: |
+                  Before we go further—listen to these two chords.
+
+                  Which one feels more "stable" or "resolved" to you? Why do you think that is?
+                media:
+                  type: audio
+                  url: /assets/audio/c-major-c-diminished.mp3
+                  alt: C major chord followed by C diminished chord
+                feedback:
+                  general: Your brain just did something remarkable. Without any training, you distinguished consonance from dissonance—a judgment that involves detecting mathematical relationships between sound frequencies.
+                allowSkip: true
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          # Activity 3: Spatial Overview
+          - id: enc-overview
+            type: spatial_map
+            title: The Territory of Harmony
+            content: |
+              This is where we are in the landscape of harmony. Today, we explore intervals—the foundation of everything that follows.
+            duration: 45
+            media:
+              - type: interactive
+                url: /assets/interactive/harmony-concept-map.json
+                alt: Interactive concept map showing Harmony at center with connected topics
+                caption: Tap any node to see what you'll learn
+            layout: spatial
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          # Activity 4: Emotional Anchor
+          - id: enc-anchor
+            type: reflection_prompt
+            title: Your Musical Memory
+            content: |
+              Think about a piece of music that gives you chills—or makes you tear up, or fills you with energy. You probably can't explain *why* it affects you. By the end of this module, you'll understand one piece of the puzzle: how the combinations of notes create the emotional landscape you feel.
+            duration: 60
+            interactions:
+              - id: enc-personal
+                type: free_text
+                prompt: What's a piece of music that moves you? (This is just for you—your private learning journal.)
+                allowSkip: true
+                feedback:
+                  general: Music connects to our deepest emotions. Let's discover how.
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+      # === ANALYSIS STAGE (LH-Primary) ===
+      analysis:
+        stage: analysis
+        name: The Analysis
+        description: Break down harmony into its components and practice identifying them
+        estimatedDuration: 420
+
+        uiTheme:
+          colorPalette: cool_focused
+          typography: sans_structured
+          layout: grid
+          timing: paced
+
+        transition:
+          type: shift
+          duration: 2
+          bridgeText: Now let's reconnect these pieces to the music that moves you.
+          hapticCue: none
+
+        contentItems:
+          # Concept Card 1: Intervals
+          - id: ana-intervals
+            type: concept_card
+            title: Intervals
+            content: |
+              # Intervals
+
+              **An interval is the distance between two notes.**
+
+              When you play two notes together (or one after another), the space between them is called an interval. Intervals are measured in "steps" or "semitones"—the smallest distance between two keys on a piano.
+
+              | Interval Name | Semitones | Example | Sound Quality |
+              |---------------|-----------|---------|---------------|
+              | Unison        | 0         | C to C  | Identity      |
+              | Minor 2nd     | 1         | C to Db | Tense, grinding |
+              | Major 3rd     | 4         | C to E  | Bright, happy |
+              | Perfect 5th   | 7         | C to G  | Open, stable  |
+              | Octave        | 12        | C to C(high) | The "same note, higher" |
+            duration: 120
+            media:
+              - type: image
+                url: /assets/images/piano-intervals-diagram.svg
+                alt: Piano keyboard diagram showing intervals from C
+              - type: audio
+                url: /assets/audio/intervals-examples.mp3
+                alt: Audio examples of each interval in the table
+                duration: 30
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          # Concept Card 2: Consonance and Dissonance
+          - id: ana-consonance
+            type: concept_card
+            title: Consonance and Dissonance
+            content: |
+              # Consonance and Dissonance
+
+              **Consonance** = intervals that sound stable, pleasant, "at rest."
+
+              **Dissonance** = intervals that sound tense, unstable, "wanting to move."
+
+              Consonance and dissonance are not good vs. bad. Music needs both. Consonance is home base; dissonance is the journey that makes coming home meaningful.
+
+              **Consonance Spectrum:**
+              Most consonant → Most dissonant
+              (Unison, Octave, Perfect 5th) → (Minor 2nd, Tritone)
+            duration: 90
+            media:
+              - type: image
+                url: /assets/images/consonance-spectrum.svg
+                alt: Horizontal spectrum showing intervals from consonant to dissonant
+              - type: audio
+                url: /assets/audio/tension-resolution-phrase.mp3
+                alt: Musical phrase moving from consonance to dissonance and back
+                duration: 6
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+
+          # Concept Card 3: Chords
+          - id: ana-chords
+            type: concept_card
+            title: Chords
+            content: |
+              # Chords
+
+              **A chord is three or more notes played together.**
+
+              The simplest chords are built by stacking intervals of a third (every other note in a scale):
+
+              - **Major chord** = Root + Major 3rd + Minor 3rd (e.g., C-E-G)
+                Sounds bright, stable, happy.
+
+              - **Minor chord** = Root + Minor 3rd + Major 3rd (e.g., C-Eb-G)
+                Sounds darker, reflective, melancholic.
+
+              - **Diminished chord** = Root + Minor 3rd + Minor 3rd (e.g., C-Eb-Gb)
+                Sounds tense, unstable, dramatic.
+            duration: 90
+            media:
+              - type: image
+                url: /assets/images/chord-types-diagram.svg
+                alt: Piano keyboard diagrams showing major, minor, and diminished chords with intervals labeled
+              - type: audio
+                url: /assets/audio/chord-types-examples.mp3
+                alt: C major, C minor, and C diminished chords played in sequence
+                duration: 10
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+
+          # Retrieval Practice
+          - id: ana-practice
+            type: practice
+            title: Retrieval Practice
+            content: Test your understanding through active recall
+            duration: 150
+            interactions:
+              - id: prac-1
+                type: free_recall
+                prompt: What is an interval?
+                correctAnswer: The distance between two notes
+                feedback:
+                  correct: Got it! An interval is the distance between two notes, measured in semitones.
+                  partial: Almost—an interval is specifically the distance between two notes.
+                  incorrect: An interval is the distance between two notes, measured in semitones.
+                tags: [intervals, definition]
+
+              - id: prac-2
+                type: audio_recognition
+                prompt: Which interval is this?
+                media:
+                  type: audio
+                  url: /assets/audio/perfect-fifth-test.mp3
+                  alt: Piano playing a perfect fifth interval
+                options:
+                  - id: opt-a
+                    text: Minor 2nd
+                    isCorrect: false
+                  - id: opt-b
+                    text: Major 3rd
+                    isCorrect: false
+                  - id: opt-c
+                    text: Perfect 5th
+                    isCorrect: true
+                  - id: opt-d
+                    text: Octave
+                    isCorrect: false
+                correctAnswer: opt-c
+                feedback:
+                  correct: That's the Perfect 5th—the wide, open, stable sound. Pythagoras's favorite ratio - 3:2.
+                  incorrect: Listen again for that wide, stable quality. This is a Perfect 5th (C to G).
+                tags: [intervals, audio-recognition, perfect-fifth]
+
+              - id: prac-3
+                type: categorization
+                prompt: Sort these intervals into "More Consonant" and "More Dissonant"
+                options:
+                  - id: int-octave
+                    text: Octave
+                    isCorrect: true
+                    feedback: The Octave is highly consonant—it's the "same note, higher."
+                  - id: int-min2
+                    text: Minor 2nd
+                    isCorrect: false
+                    feedback: The Minor 2nd is dissonant—that grinding, tense sound.
+                  - id: int-p5
+                    text: Perfect 5th
+                    isCorrect: true
+                    feedback: The Perfect 5th is consonant—open and stable.
+                  - id: int-tritone
+                    text: Tritone
+                    isCorrect: false
+                    feedback: The Tritone is highly dissonant—medieval theorists called it "the devil's interval."
+                  - id: int-maj3
+                    text: Major 3rd
+                    isCorrect: true
+                    feedback: The Major 3rd is consonant—it's the bright interval that defines a major chord.
+                  - id: int-min7
+                    text: Minor 7th
+                    isCorrect: false
+                    feedback: The Minor 7th is dissonant—tense and wanting resolution.
+                feedback:
+                  correct: Perfect! You can hear the difference between stability and tension.
+                  partial: Almost there. Remember - simpler ratios sound more consonant.
+                  incorrect: Consonant intervals (Octave, Perfect 5th, Major 3rd) sound stable. Dissonant intervals (Minor 2nd, Tritone, Minor 7th) sound tense.
+                tags: [intervals, consonance, categorization]
+
+              - id: prac-4
+                type: audio_recognition
+                prompt: What type of chord is this?
+                media:
+                  type: audio
+                  url: /assets/audio/c-minor-chord-test.mp3
+                  alt: C minor chord played on piano
+                options:
+                  - id: chord-maj
+                    text: Major
+                    isCorrect: false
+                  - id: chord-min
+                    text: Minor
+                    isCorrect: true
+                  - id: chord-dim
+                    text: Diminished
+                    isCorrect: false
+                correctAnswer: chord-min
+                feedback:
+                  correct: That's a minor chord—built from a minor 3rd on the bottom and a major 3rd on top. Notice the darker, more reflective quality compared to major.
+                  incorrect: Listen for that darker, melancholic quality. This is a minor chord.
+                tags: [chords, audio-recognition, minor-chord]
+
+              - id: prac-5
+                type: free_recall
+                prompt: What three intervals make up a major chord? (Name them in order from the root.)
+                correctAnswer: Root, Major 3rd, Minor 3rd
+                feedback:
+                  correct: Exactly right! Root + Major 3rd + Minor 3rd (which creates a Perfect 5th from the root).
+                  partial: You're on the right track. A major chord is Root + Major 3rd + Minor 3rd.
+                  incorrect: A major chord is built from a Root, plus a Major 3rd above the root, plus a Minor 3rd above that (which creates a Perfect 5th from the root). Root + Major 3rd + Minor 3rd.
+                tags: [chords, major-chord, intervals]
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+
+          # Elaborative Interrogation
+          - id: ana-elaborate
+            type: activity
+            title: Elaborative Interrogation
+            content: |
+              You learned that a Major chord sounds "bright and happy" while a Minor chord sounds "darker and melancholic." The only difference between them is the order of the thirds:
+
+              - Major chord = Major 3rd + Minor 3rd
+              - Minor chord = Minor 3rd + Major 3rd
+
+              **Why do you think swapping the order of two intervals changes the emotional feeling so dramatically? What is it about putting the smaller interval on the bottom?**
+            duration: 60
+            interactions:
+              - id: elab-why
+                type: free_text
+                prompt: Why does swapping the interval order change the emotional quality?
+                modelAnswer: |
+                  When the smaller interval (Minor 3rd) is on the bottom, the lower notes are closer together, creating a "compressed" or "darkened" sound in the range where our ears are most sensitive to harmony. The larger interval on top opens up, but the foundation feels weighted and heavy. In a Major chord, the wider interval at the bottom creates a bright, expansive foundation. This is related to the overtone series—Major 3rds align more closely with the natural harmonics of a vibrating string.
+                feedback:
+                  general: Great thinking! Compare your explanation to this one.
+                allowSkip: false
+                tags: [chords, deeper-understanding, elaboration]
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: balanced
+
+      # === RETURN STAGE (RH-Primary) ===
+      return:
+        stage: return
+        name: The Return
+        description: Reintegrate understanding and create something new
+        estimatedDuration: 240
+
+        uiTheme:
+          colorPalette: reflective_open
+          typography: serif_narrative
+          layout: open
+          timing: flexible
+
+        transition:
+          type: gentle
+          duration: 0
+          bridgeText: ''
+          hapticCue: none
+
+        contentItems:
+          # Reconnection to the Whole
+          - id: ret-reconnect
+            type: narrative
+            title: The Living Whole
+            content: |
+              So a tree is literally made of sunlight and air... wait, wrong topic! 😊
+
+              Let's return to Pythagoras by his river. He discovered that simple ratios—2:1, 3:2, 4:3—create the intervals we call consonant. Every culture on Earth, throughout all of history, has independently discovered the same truth: the simpler the mathematical relationship between two frequencies, the more "right" they sound together.
+
+              This isn't arbitrary. It's not culturally constructed. It's physics meeting neurology. Your auditory cortex detects these simple ratios in the pattern of vibrations hitting your eardrum, and your brain says "this fits."
+
+              And yet—knowing this doesn't diminish the magic. If anything, it deepens it. The emotional power of a chord progression, the way certain harmonies can make you weep or soar, is *real*. It's meaning emerging from mathematics, felt experience arising from vibrating air. It's one of the places where McGilchrist's two hemispheres meet: the left hemisphere's precise ratios are in service of the right hemisphere's lived emotional truth.
+            duration: 90
+            layout: card
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          # Reflection Prompt
+          - id: ret-reflect
+            type: reflection_prompt
+            title: What Changed?
+            content: |
+              You started this module by listening to two intervals and feeling the difference between stability and tension—without knowing why. Now you understand the structure beneath that feeling.
+            duration: 60
+            interactions:
+              - id: refl-1
+                type: reflection
+                prompt: |
+                  What surprised you most about what you learned? Did anything change about how you think about music?
+                allowSkip: false
+                feedback:
+                  general: The best learning changes not just what we know, but how we see the world.
+                tags: [metacognition, reflection]
+
+              - id: refl-2
+                type: self_assessment
+                prompt: How well do you feel you understand harmony and intervals now?
+                options:
+                  - id: conf-1
+                    text: I could explain it to a friend
+                    isCorrect: true
+                  - id: conf-2
+                    text: I understand but couldn't explain it yet
+                    isCorrect: true
+                  - id: conf-3
+                    text: I'm still unclear on some parts
+                    isCorrect: true
+                  - id: conf-4
+                    text: I need to review the material
+                    isCorrect: true
+                feedback:
+                  general: Your self-awareness is as important as the content. If you're unsure, revisit the Analysis stage.
+                allowSkip: false
+                tags: [metacognition, self-assessment]
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+          # Transfer Challenge
+          - id: ret-transfer
+            type: activity
+            title: Transfer Challenge
+            content: |
+              Music isn't the only domain where simple ratios create harmony. Let's see if you can transfer this principle.
+            duration: 90
+            interactions:
+              - id: trans-1
+                type: transfer_challenge
+                prompt: |
+                  In visual design, certain proportions feel "harmonious" to the eye—the Golden Ratio (1.618:1), the rule of thirds, the Fibonacci sequence in composition.
+
+                  Based on what you learned about musical harmony, why do you think simple mathematical ratios also create visual harmony? What might be the connection?
+                modelAnswer: |
+                  Just as the auditory cortex detects simple ratios in sound frequencies, the visual cortex might detect simple ratios in spatial proportions. Pattern-detection systems in the brain evolved to make sense of the world, and simple ratios appear throughout nature (in growth patterns, symmetries, spirals). What feels "harmonious" visually might be what our brains recognize as orderly, predictable, and therefore safe and pleasing—the same principle as musical consonance, but in a different sensory domain.
+                feedback:
+                  general: Excellent thinking! Simple ratios appear throughout nature and across our senses. The brain is fundamentally a pattern-detector, and simple patterns feel "right" because they're easier to process and predict.
+                allowSkip: false
+                tags: [transfer, cross-domain, visual-design]
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          # Creative Synthesis
+          - id: ret-create
+            type: activity
+            title: Creative Synthesis
+            content: |
+              Now it's your turn to create. You're going to build a simple chord progression—four chords that tell an emotional story.
+            duration: 120
+            interactions:
+              - id: create-1
+                type: creative_synthesis
+                prompt: |
+                  Using the interactive tool below, choose four chords. Think about the emotional arc you want:
+
+                  - Start stable? Or tense?
+                  - Build tension in the middle?
+                  - Resolve at the end? Or leave it unresolved?
+
+                  After you've created your progression, describe in 2-3 sentences what emotional story you were trying to tell.
+                media:
+                  type: interactive
+                  url: /assets/interactive/chord-progression-builder.html
+                  alt: Interactive chord progression builder with playback
+                feedback:
+                  general: Beautiful! Every chord progression is a miniature emotional narrative. You just composed one.
+                allowSkip: false
+                tags: [creative, composition, application]
+            layout: card
+            emotionalTone: celebration
+            metadata:
+              hemisphere: RH
+
+          # Cross-Topic Connections
+          - id: ret-connections
+            type: visual_overview
+            title: Where This Connects
+            content: |
+              Harmony is one node in a vast web of musical understanding. Here's where it connects to other topics:
+            duration: 45
+            media:
+              - type: interactive
+                url: /assets/interactive/music-knowledge-web.json
+                alt: Interactive knowledge graph showing harmony's connections to melody, rhythm, timbre, composition, and music history
+                caption: Tap any connection to see how harmony relates
+            layout: spatial
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+    # Knowledge Graph
+    knowledgeGraph:
+      nodes:
+        - id: intervals
+          label: Intervals
+          type: concept
+        - id: consonance
+          label: Consonance
+          type: concept
+        - id: dissonance
+          label: Dissonance
+          type: concept
+        - id: chords
+          label: Chords
+          type: concept
+        - id: major-chord
+          label: Major Chord
+          type: concept
+        - id: minor-chord
+          label: Minor Chord
+          type: concept
+        - id: diminished-chord
+          label: Diminished Chord
+          type: concept
+        - id: overtone-series
+          label: Overtone Series
+          type: concept
+        - id: pythagoras
+          label: Pythagoras & Simple Ratios
+          type: fact
+        - id: emotional-response
+          label: Emotional Response to Music
+          type: relationship
+
+      edges:
+        - from: intervals
+          to: consonance
+          relationship: part_of
+        - from: intervals
+          to: dissonance
+          relationship: part_of
+        - from: chords
+          to: intervals
+          relationship: prerequisite
+        - from: major-chord
+          to: chords
+          relationship: example_of
+        - from: minor-chord
+          to: chords
+          relationship: example_of
+        - from: diminished-chord
+          to: chords
+          relationship: example_of
+        - from: major-chord
+          to: minor-chord
+          relationship: contrasts_with
+        - from: consonance
+          to: overtone-series
+          relationship: related
+        - from: pythagoras
+          to: intervals
+          relationship: related
+        - from: consonance
+          to: emotional-response
+          relationship: related
+        - from: dissonance
+          to: emotional-response
+          relationship: related
+
+    # Assessments
+    assessments:
+      - id: formative-1
+        type: formative
+        timing: during
+        interactions:
+          - id: form-check-1
+            type: self_assessment
+            prompt: On a scale of 1-5, how confident are you in distinguishing consonant from dissonant intervals by ear?
+            options:
+              - id: conf-1
+                text: '1 - Not confident at all'
+                isCorrect: true
+              - id: conf-2
+                text: '2 - Somewhat unsure'
+                isCorrect: true
+              - id: conf-3
+                text: '3 - Moderately confident'
+                isCorrect: true
+              - id: conf-4
+                text: '4 - Quite confident'
+                isCorrect: true
+              - id: conf-5
+                text: '5 - Very confident'
+                isCorrect: true
+            tags: [self-assessment, formative]
+
+      - id: summative-1
+        type: summative
+        timing: after
+        interactions:
+          - id: summ-1
+            type: audio_recognition
+            prompt: Identify this chord type
+            media:
+              type: audio
+              url: /assets/audio/assessment-chord-1.mp3
+              alt: Mystery chord for assessment
+            options:
+              - id: opt-maj
+                text: Major
+                isCorrect: true
+              - id: opt-min
+                text: Minor
+                isCorrect: false
+              - id: opt-dim
+                text: Diminished
+                isCorrect: false
+            correctAnswer: opt-maj
+            tags: [summative, chords]
+
+      - id: transfer-1
+        type: transfer
+        timing: delayed
+        interactions:
+          - id: trans-assess
+            type: transfer_challenge
+            prompt: |
+              A week from now, you'll hear a new chord progression in a song. Based on what you learned, explain how the progression creates its emotional effect. What intervals and chords create tension? Which create resolution?
+            tags: [transfer, delayed-assessment]
