@@ -2,7 +2,7 @@
   "name": "hemisphere",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "npm@10.9.0",
+  "packageManager": "pnpm@10.1.0",
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
@@ -12,10 +12,6 @@
     "format": "turbo run format",
     "clean": "turbo run clean --continue"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "devDependencies": {
     "turbo": "2.5.8",
     "typescript": "^5.7.3"
