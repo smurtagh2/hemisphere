@@ -1,0 +1,26 @@
+{
+  "name": "@hemisphere/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "echo \"No lint configured for @hemisphere/web\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests yet for @hemisphere/web\"",
+    "clean": "rm -rf .next tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.6",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.3"
+  }
+}
