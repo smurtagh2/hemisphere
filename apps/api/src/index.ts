@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
+import { sessionRoutes } from './routes/session.js';
 import { authMiddleware, requireRole, requireAuth, type AppEnv } from './middleware/auth.js';
 
 const app = new Hono<AppEnv>();
@@ -14,6 +15,7 @@ app.get('/', (c) => {
 
 app.route('/health', healthRoutes);
 app.route('/api/auth', authRoutes);
+app.route('/api/session', sessionRoutes);
 
 // ─── Protected routes (authentication required) ───────────────────────────────
 
