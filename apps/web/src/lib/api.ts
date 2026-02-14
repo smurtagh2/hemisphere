@@ -6,6 +6,12 @@
  * "hemisphere_token".
  */
 
+import {
+  getCurrentRetrievability,
+  type FsrsCard,
+  type FsrsCardState,
+} from '@hemisphere/shared';
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -283,11 +289,188 @@ export interface ReviewQueueResponse {
   meta: ReviewQueueMeta;
 }
 
+type DueReviewState = {
+  itemId: string;
+  kcId: string;
+  stability: number;
+  difficulty: number;
+  retrievability: number;
+  state: string;
+  nextReview: string | null;
+  lastReview: string | null;
+  reviewCount: number;
+  lapseCount: number;
+};
+
+interface DueReviewsResponse {
+  dueReviews: DueReviewState[];
+}
+
+interface CachedReviewState {
+  itemId: string;
+  kcId: string;
+  stability: number;
+  difficulty: number;
+  retrievability: number;
+  state: FsrsCardState;
+  nextReview: string | null;
+  lastReview: string | null;
+  reviewCount: number;
+  lapseCount: number;
+}
+
+interface CachedReviewQueueState {
+  generatedAt: string;
+  items: CachedReviewState[];
+}
+
+const REVIEW_QUEUE_CACHE_KEY = 'hemisphere:review:fsrs-state:v1';
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function isFsrsCardState(value: string): value is FsrsCardState {
+  return value === 'new' || value === 'learning' || value === 'review' || value === 'relearning';
+}
+
+function toCachedReviewState(items: DueReviewState[]): CachedReviewState[] {
+  return items
+    .map((item) => {
+      if (!isFsrsCardState(item.state)) return null;
+      return {
+        itemId: item.itemId,
+        kcId: item.kcId,
+        stability: item.stability,
+        difficulty: item.difficulty,
+        retrievability: item.retrievability,
+        state: item.state,
+        nextReview: item.nextReview,
+        lastReview: item.lastReview,
+        reviewCount: item.reviewCount,
+        lapseCount: item.lapseCount,
+      };
+    })
+    .filter((item): item is CachedReviewState => item !== null);
+}
+
+function saveCachedReviewQueueState(items: DueReviewState[]): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const snapshot: CachedReviewQueueState = {
+      generatedAt: new Date().toISOString(),
+      items: toCachedReviewState(items),
+    };
+    localStorage.setItem(REVIEW_QUEUE_CACHE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // Best-effort cache; ignore storage failures.
+  }
+}
+
+function loadCachedReviewQueueState(): CachedReviewQueueState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = localStorage.getItem(REVIEW_QUEUE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedReviewQueueState;
+    if (!parsed || !Array.isArray(parsed.items) || typeof parsed.generatedAt !== 'string') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildClientReviewQueue(
+  items: CachedReviewState[],
+  limit?: number,
+  now: Date = new Date()
+): ReviewQueueResponse {
+  const MAX_LIMIT = 50;
+  const requestedLimit = limit ?? 20;
+  const effectiveLimit = Math.max(1, Math.min(requestedLimit, MAX_LIMIT));
+
+  const candidates = items
+    .map((item) => {
+      const lastReviewDate = item.lastReview ? new Date(item.lastReview) : null;
+      const nextReviewDate = item.nextReview ? new Date(item.nextReview) : null;
+      const card: FsrsCard = {
+        stability: item.stability,
+        difficulty: item.difficulty,
+        retrievability: item.retrievability,
+        state: item.state,
+        lastReview: lastReviewDate,
+        reviewCount: item.reviewCount,
+        lapseCount: item.lapseCount,
+      };
+
+      const liveRetrievability = clamp01(getCurrentRetrievability(card, now));
+      const isNew = card.state === 'new' || nextReviewDate === null;
+      const dueDate = nextReviewDate ?? now;
+      const due = isNew || dueDate.getTime() <= now.getTime();
+      if (!due) return null;
+
+      const overdueDays = isNew
+        ? 0
+        : Math.max(0, (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const priority = overdueDays * 10 + (1 - liveRetrievability) * 5 + (isNew ? 1 : 0);
+
+      return {
+        itemId: item.itemId,
+        kcId: item.kcId,
+        dueDate: dueDate.toISOString(),
+        retrievability: liveRetrievability,
+        overdueDays,
+        isNew,
+        priority,
+      } satisfies ReviewQueueItem;
+    })
+    .filter((item): item is ReviewQueueItem => item !== null)
+    .sort((a, b) => b.priority - a.priority);
+
+  const queue = candidates.slice(0, effectiveLimit);
+  const newCount = candidates.filter((item) => item.isNew).length;
+
+  return {
+    queue,
+    meta: {
+      total: candidates.length,
+      newCount,
+      dueCount: candidates.length - newCount,
+      generatedAt: now.toISOString(),
+    },
+  };
+}
+
 export async function getReviewQueue(limit?: number): Promise<ReviewQueueResponse> {
-  const path = limit !== undefined
-    ? `/api/review/queue?limit=${encodeURIComponent(limit)}`
-    : '/api/review/queue';
-  return request<ReviewQueueResponse>(path);
+  try {
+    const response = await request<DueReviewsResponse>('/api/learner/due-reviews');
+    saveCachedReviewQueueState(response.dueReviews);
+    return buildClientReviewQueue(toCachedReviewState(response.dueReviews), limit);
+  } catch (err) {
+    const cached = loadCachedReviewQueueState();
+    if (cached && (typeof navigator === 'undefined' || navigator.onLine === false)) {
+      return buildClientReviewQueue(cached.items, limit);
+    }
+
+    // Fallback for environments where /due-reviews is unavailable.
+    const path = limit !== undefined
+      ? `/api/review/queue?limit=${encodeURIComponent(limit)}`
+      : '/api/review/queue';
+
+    try {
+      return await request<ReviewQueueResponse>(path);
+    } catch (secondaryErr) {
+      if (cached) {
+        return buildClientReviewQueue(cached.items, limit);
+      }
+      throw secondaryErr instanceof Error ? secondaryErr : err;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
