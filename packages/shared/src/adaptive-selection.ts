@@ -26,6 +26,11 @@
  */
 
 import { getCurrentRetrievability, type FsrsCard } from './fsrs';
+import {
+  getStageBalanceForLoop,
+  type SessionLoopType,
+  type SessionStageBalance,
+} from './session-state-machine';
 
 // ============================================================================
 // Public types
@@ -362,5 +367,327 @@ export function selectNextItems(input: AdaptiveSelectionInput): AdaptiveSelectio
     selectedItems: selected,
     nextLevel,
     rationale: rationaleFragments.join(' '),
+  };
+}
+
+// ============================================================================
+// Full adaptive engine (Phase 3)
+// ============================================================================
+
+export type AdaptiveDifficultyLevel = 1 | 2 | 3 | 4;
+
+export interface AdaptiveSessionItem {
+  itemId: string;
+  kcId: string;
+  topicId: string;
+  stage: 'encounter' | 'analysis' | 'return';
+  difficultyLevel: number;
+  interleaveEligible: boolean;
+  isReviewable: boolean;
+  similarityTags?: string[];
+}
+
+export interface AdaptiveSessionTopic {
+  topicId: string;
+  items: AdaptiveSessionItem[];
+}
+
+export interface AdaptiveSessionPlanInput {
+  primaryTopicId: string;
+  availableTopics: AdaptiveSessionTopic[];
+  memoryStates: Map<string, FsrsCard>;
+  currentLevel: AdaptiveDifficultyLevel;
+  sessionType: SessionLoopType;
+  hemisphereBalanceScore: number; // -1 (LH) .. +1 (RH)
+  analysisItemBudget?: number;
+  now?: Date;
+}
+
+export type AdaptivePlanReason =
+  | 'overdue_review'
+  | 'due_review'
+  | 'new_primary'
+  | 'interleaved_related'
+  | 'fill';
+
+export interface AdaptivePlannedItem {
+  itemId: string;
+  topicId: string;
+  kcId: string;
+  reason: AdaptivePlanReason;
+  isInterleaved: boolean;
+  retrievability: number;
+  priorityScore: number;
+}
+
+export interface AdaptiveSessionPlan {
+  level: AdaptiveDifficultyLevel;
+  nextLevel: AdaptiveDifficultyLevel;
+  stageBalance: SessionStageBalance;
+  selectedItems: AdaptivePlannedItem[];
+  rationale: string;
+}
+
+const REVIEW_RATIO_BY_LEVEL: Record<AdaptiveDifficultyLevel, number> = {
+  1: 0.7,
+  2: 0.6,
+  3: 0.55,
+  4: 0.5,
+};
+
+const INTERLEAVE_RATIO_BY_LEVEL: Record<AdaptiveDifficultyLevel, number> = {
+  1: 0.1,
+  2: 0.2,
+  3: 0.25,
+  4: 0.35,
+};
+
+const NEXT_LEVEL_RETRIEVABILITY_THRESHOLD: Record<1 | 2 | 3, number> = {
+  1: 0.72,
+  2: 0.8,
+  3: 0.86,
+};
+
+function clampLevel(level: number): AdaptiveDifficultyLevel {
+  if (level <= 1) return 1;
+  if (level >= 4) return 4;
+  return Math.round(level) as AdaptiveDifficultyLevel;
+}
+
+function clamp01(value: number): number {
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+}
+
+function clampSigned(value: number): number {
+  if (value <= -1) return -1;
+  if (value >= 1) return 1;
+  return value;
+}
+
+function overlapScore(a: string[] | undefined, b: Set<string>): number {
+  if (!a || a.length === 0 || b.size === 0) return 0;
+  let overlap = 0;
+  for (const tag of a) {
+    if (b.has(tag)) overlap++;
+  }
+  return overlap / Math.max(a.length, b.size);
+}
+
+function buildPrimaryTagSet(primaryTopicId: string, topics: AdaptiveSessionTopic[]): Set<string> {
+  const tags = new Set<string>();
+  for (const topic of topics) {
+    if (topic.topicId !== primaryTopicId) continue;
+    for (const item of topic.items) {
+      for (const tag of item.similarityTags ?? []) {
+        tags.add(tag);
+      }
+    }
+  }
+  return tags;
+}
+
+function getAnalysisBudget(
+  sessionType: SessionLoopType,
+  explicitBudget?: number
+): number {
+  if (explicitBudget && explicitBudget > 0) return Math.floor(explicitBudget);
+  if (sessionType === 'quick') return 8;
+  if (sessionType === 'extended') return 28;
+  return 16;
+}
+
+function getStageBalanceWithHbs(
+  loopType: SessionLoopType,
+  hbsRaw: number
+): SessionStageBalance {
+  if (loopType === 'quick') {
+    return getStageBalanceForLoop('quick');
+  }
+
+  const hbs = clampSigned(hbsRaw);
+  if (hbs < -0.3) {
+    return { encounter: 0.3, analysis: 0.4, return: 0.3 };
+  }
+  if (hbs < -0.1) {
+    return { encounter: 0.27, analysis: 0.46, return: 0.27 };
+  }
+  if (hbs <= 0.1) {
+    return getStageBalanceForLoop(loopType);
+  }
+  if (hbs <= 0.3) {
+    return { encounter: 0.22, analysis: 0.56, return: 0.22 };
+  }
+  return { encounter: 0.2, analysis: 0.6, return: 0.2 };
+}
+
+export function planAdaptiveSession(input: AdaptiveSessionPlanInput): AdaptiveSessionPlan {
+  const now = input.now ?? new Date();
+  const level = clampLevel(input.currentLevel);
+  const stageBalance = getStageBalanceWithHbs(
+    input.sessionType,
+    input.hemisphereBalanceScore
+  );
+  const analysisBudget = getAnalysisBudget(input.sessionType, input.analysisItemBudget);
+  const reviewTarget = Math.max(0, Math.round(analysisBudget * REVIEW_RATIO_BY_LEVEL[level]));
+
+  let interleaveRatio = INTERLEAVE_RATIO_BY_LEVEL[level];
+  if (input.sessionType === 'quick') interleaveRatio = Math.min(interleaveRatio, 0.15);
+  if (input.sessionType === 'extended') interleaveRatio = Math.min(0.4, interleaveRatio + 0.05);
+  const interleaveTarget = Math.max(0, Math.round(analysisBudget * interleaveRatio));
+
+  const primaryTags = buildPrimaryTagSet(input.primaryTopicId, input.availableTopics);
+
+  type Candidate = {
+    item: AdaptiveSessionItem;
+    topicId: string;
+    isPrimary: boolean;
+    isNew: boolean;
+    isDue: boolean;
+    isOverdue: boolean;
+    retrievability: number;
+    priorityScore: number;
+    similarity: number;
+  };
+
+  const candidates: Candidate[] = [];
+  for (const topic of input.availableTopics) {
+    for (const item of topic.items) {
+      if (item.stage !== 'analysis') continue;
+      if (item.difficultyLevel > level) continue;
+
+      const card = input.memoryStates.get(item.itemId);
+      const isNew = !card || card.state === 'new';
+      const retrievability = card ? getCurrentRetrievability(card, now) : 1;
+      const isDue =
+        !isNew &&
+        (card.state === 'learning' ||
+          card.state === 'relearning' ||
+          retrievability < 0.9);
+      const isOverdue = isDue && retrievability < 0.7;
+      const similarity = overlapScore(item.similarityTags, primaryTags);
+      const overdueBoost = isOverdue ? (0.7 - retrievability) * 100 : 0;
+      const dueBoost = isDue ? (1 - retrievability) * 20 : 0;
+      const noveltyPenalty = isNew ? -2 : 0;
+      const interleaveBoost =
+        topic.topicId !== input.primaryTopicId ? similarity * 8 : 0;
+
+      candidates.push({
+        item,
+        topicId: topic.topicId,
+        isPrimary: topic.topicId === input.primaryTopicId,
+        isNew,
+        isDue,
+        isOverdue,
+        retrievability,
+        priorityScore: overdueBoost + dueBoost + interleaveBoost + noveltyPenalty,
+        similarity,
+      });
+    }
+  }
+
+  const byPriority = [...candidates].sort((a, b) => b.priorityScore - a.priorityScore);
+  const overdue = byPriority.filter((c) => c.isOverdue);
+  const due = byPriority.filter((c) => c.isDue && !c.isOverdue);
+  const newPrimary = byPriority.filter((c) => c.isNew && c.isPrimary);
+  const relatedInterleave = byPriority.filter(
+    (c) =>
+      !c.isPrimary &&
+      c.item.interleaveEligible &&
+      c.similarity >= 0.5 &&
+      // no cold topics: only interleave related items that have been seen
+      !c.isNew
+  );
+  const fallbackPool = byPriority.filter((c) => !c.isOverdue && !c.isDue);
+
+  const selected = new Map<string, AdaptivePlannedItem>();
+
+  function pushFrom(pool: Candidate[], count: number, reason: AdaptivePlanReason): number {
+    if (count <= 0) return 0;
+    let taken = 0;
+    for (const c of pool) {
+      if (taken >= count) break;
+      if (selected.has(c.item.itemId)) continue;
+
+      selected.set(c.item.itemId, {
+        itemId: c.item.itemId,
+        topicId: c.topicId,
+        kcId: c.item.kcId,
+        reason,
+        isInterleaved: c.topicId !== input.primaryTopicId,
+        retrievability: clamp01(c.retrievability),
+        priorityScore: c.priorityScore,
+      });
+      taken++;
+    }
+    return taken;
+  }
+
+  const maxOverdueSlice = Math.round(analysisBudget * 0.25);
+  pushFrom(overdue, Math.min(maxOverdueSlice, analysisBudget), 'overdue_review');
+  const reviewsSelected = selected.size;
+  pushFrom(due, Math.max(0, reviewTarget - reviewsSelected), 'due_review');
+  pushFrom(newPrimary, Math.max(0, analysisBudget - selected.size - interleaveTarget), 'new_primary');
+  pushFrom(relatedInterleave, Math.max(0, interleaveTarget), 'interleaved_related');
+  pushFrom(fallbackPool, Math.max(0, analysisBudget - selected.size), 'fill');
+
+  const selectedItems = [...selected.values()];
+
+  // Keep interleaved items distributed through the queue.
+  const interleaved = selectedItems.filter((item) => item.isInterleaved);
+  const core = selectedItems.filter((item) => !item.isInterleaved);
+  const ordered: AdaptivePlannedItem[] = [];
+  if (interleaved.length === 0) {
+    ordered.push(...selectedItems.sort((a, b) => b.priorityScore - a.priorityScore));
+  } else {
+    core.sort((a, b) => b.priorityScore - a.priorityScore);
+    interleaved.sort((a, b) => b.priorityScore - a.priorityScore);
+    const interval = Math.max(1, Math.floor(core.length / interleaved.length));
+    let coreIdx = 0;
+    let intIdx = 0;
+    while (coreIdx < core.length || intIdx < interleaved.length) {
+      for (let i = 0; i < interval && coreIdx < core.length; i++) {
+        ordered.push(core[coreIdx++]);
+      }
+      if (intIdx < interleaved.length) {
+        ordered.push(interleaved[intIdx++]);
+      }
+    }
+  }
+
+  // Promote level only when primary reviewed items show strong retention.
+  const reviewedPrimary = candidates.filter(
+    (c) => c.isPrimary && !c.isNew && Number.isFinite(c.retrievability)
+  );
+  const averagePrimaryRetrievability =
+    reviewedPrimary.length > 0
+      ? reviewedPrimary.reduce((acc, c) => acc + c.retrievability, 0) / reviewedPrimary.length
+      : null;
+
+  let nextLevel: AdaptiveDifficultyLevel = level;
+  if (level < 4 && averagePrimaryRetrievability !== null) {
+    const threshold = NEXT_LEVEL_RETRIEVABILITY_THRESHOLD[level as 1 | 2 | 3];
+    if (averagePrimaryRetrievability >= threshold) {
+      nextLevel = (level + 1) as AdaptiveDifficultyLevel;
+    }
+  }
+
+  const rationale = [
+    `Level ${level} plan with budget ${analysisBudget} (selected ${ordered.length}).`,
+    `Stage balance E/A/R = ${stageBalance.encounter.toFixed(2)}/${stageBalance.analysis.toFixed(2)}/${stageBalance.return.toFixed(2)}.`,
+    `Review target ${reviewTarget}, interleave target ${interleaveTarget}.`,
+    `HBS ${clampSigned(input.hemisphereBalanceScore).toFixed(2)}.`,
+    averagePrimaryRetrievability === null
+      ? 'No reviewed primary items yet; keeping current level.'
+      : `Primary retrievability ${averagePrimaryRetrievability.toFixed(2)} (next level ${nextLevel}).`,
+  ].join(' ');
+
+  return {
+    level,
+    nextLevel,
+    stageBalance,
+    selectedItems: ordered.slice(0, analysisBudget),
+    rationale,
   };
 }

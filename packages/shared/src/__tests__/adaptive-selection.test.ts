@@ -18,7 +18,10 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  planAdaptiveSession,
   selectNextItems,
+  type AdaptiveSessionItem,
+  type AdaptiveSessionTopic,
   type AdaptiveSelectionInput,
   type TopicWithItems,
   type TopicItem,
@@ -40,6 +43,27 @@ function makeItem(itemId: string, topicId = 'topic-1', kcId = `kc-${itemId}`): T
 }
 
 function makeTopic(topicId: string, items: TopicItem[]): TopicWithItems {
+  return { topicId, items };
+}
+
+function makeAdaptiveItem(
+  itemId: string,
+  topicId: string,
+  opts: Partial<AdaptiveSessionItem> = {}
+): AdaptiveSessionItem {
+  return {
+    itemId,
+    kcId: opts.kcId ?? `kc-${itemId}`,
+    topicId,
+    stage: opts.stage ?? 'analysis',
+    difficultyLevel: opts.difficultyLevel ?? 1,
+    interleaveEligible: opts.interleaveEligible ?? true,
+    isReviewable: opts.isReviewable ?? true,
+    similarityTags: opts.similarityTags ?? [],
+  };
+}
+
+function makeAdaptiveTopic(topicId: string, items: AdaptiveSessionItem[]): AdaptiveSessionTopic {
   return { topicId, items };
 }
 
@@ -534,5 +558,135 @@ describe('selectNextItems – edge cases', () => {
       expect(typeof si.priorityScore).toBe('number');
       expect(['new_item', 'due_review', 'struggling', 'ready_to_advance']).toContain(si.reason);
     }
+  });
+});
+
+// ============================================================================
+// Full adaptive engine (levels 1-4, HBS, interleaving)
+// ============================================================================
+
+describe('planAdaptiveSession', () => {
+  it('applies HBS-based stage balance for LH-leaning learners', () => {
+    const topic = makeAdaptiveTopic('topic-1', [
+      makeAdaptiveItem('a1', 'topic-1', { difficultyLevel: 1, similarityTags: ['core'] }),
+    ]);
+
+    const result = planAdaptiveSession({
+      primaryTopicId: 'topic-1',
+      availableTopics: [topic],
+      memoryStates: new Map(),
+      currentLevel: 1,
+      sessionType: 'standard',
+      hemisphereBalanceScore: -0.4,
+      analysisItemBudget: 4,
+      now: BASE_DATE,
+    });
+
+    expect(result.stageBalance).toEqual({ encounter: 0.3, analysis: 0.4, return: 0.3 });
+  });
+
+  it('keeps quick-loop fixed stage balance regardless of HBS', () => {
+    const topic = makeAdaptiveTopic('topic-1', [
+      makeAdaptiveItem('a1', 'topic-1', { difficultyLevel: 1 }),
+    ]);
+
+    const result = planAdaptiveSession({
+      primaryTopicId: 'topic-1',
+      availableTopics: [topic],
+      memoryStates: new Map(),
+      currentLevel: 2,
+      sessionType: 'quick',
+      hemisphereBalanceScore: 0.9,
+      analysisItemBudget: 4,
+      now: BASE_DATE,
+    });
+
+    expect(result.stageBalance).toEqual({ encounter: 0.1, analysis: 0.7, return: 0.2 });
+  });
+
+  it('filters out items above current difficulty level', () => {
+    const topic = makeAdaptiveTopic('topic-1', [
+      makeAdaptiveItem('l1', 'topic-1', { difficultyLevel: 1 }),
+      makeAdaptiveItem('l3', 'topic-1', { difficultyLevel: 3 }),
+    ]);
+
+    const result = planAdaptiveSession({
+      primaryTopicId: 'topic-1',
+      availableTopics: [topic],
+      memoryStates: new Map(),
+      currentLevel: 1,
+      sessionType: 'standard',
+      hemisphereBalanceScore: 0,
+      analysisItemBudget: 5,
+      now: BASE_DATE,
+    });
+
+    const selectedIds = result.selectedItems.map((item) => item.itemId);
+    expect(selectedIds).toContain('l1');
+    expect(selectedIds).not.toContain('l3');
+  });
+
+  it('selects interleaved items from related topics at higher levels', () => {
+    const primary = makeAdaptiveTopic('topic-1', [
+      makeAdaptiveItem('p1', 'topic-1', {
+        difficultyLevel: 3,
+        similarityTags: ['photosynthesis', 'energy'],
+      }),
+      makeAdaptiveItem('p2', 'topic-1', {
+        difficultyLevel: 3,
+        similarityTags: ['photosynthesis', 'chloroplast'],
+      }),
+    ]);
+    const related = makeAdaptiveTopic('topic-2', [
+      makeAdaptiveItem('r1', 'topic-2', {
+        difficultyLevel: 3,
+        interleaveEligible: true,
+        similarityTags: ['photosynthesis', 'energy'],
+      }),
+    ]);
+
+    const memoryStates = new Map<string, FsrsCard>([
+      ['p1', reviewCard(8, 0.82, 5)],
+      ['p2', reviewCard(8, 0.84, 5)],
+      ['r1', reviewCard(7, 0.78, 7)],
+    ]);
+
+    const result = planAdaptiveSession({
+      primaryTopicId: 'topic-1',
+      availableTopics: [primary, related],
+      memoryStates,
+      currentLevel: 3,
+      sessionType: 'extended',
+      hemisphereBalanceScore: 0.2,
+      analysisItemBudget: 6,
+      now: BASE_DATE,
+    });
+
+    expect(result.selectedItems.some((item) => item.topicId === 'topic-2')).toBe(true);
+    expect(result.selectedItems.some((item) => item.isInterleaved)).toBe(true);
+  });
+
+  it('promotes level when primary retrievability crosses threshold', () => {
+    const primary = makeAdaptiveTopic('topic-1', [
+      makeAdaptiveItem('p1', 'topic-1', { difficultyLevel: 1 }),
+      makeAdaptiveItem('p2', 'topic-1', { difficultyLevel: 1 }),
+    ]);
+    const memoryStates = new Map<string, FsrsCard>([
+      ['p1', reviewCard(25, 0.96, 1)],
+      ['p2', reviewCard(20, 0.94, 1)],
+    ]);
+
+    const result = planAdaptiveSession({
+      primaryTopicId: 'topic-1',
+      availableTopics: [primary],
+      memoryStates,
+      currentLevel: 1,
+      sessionType: 'standard',
+      hemisphereBalanceScore: 0,
+      analysisItemBudget: 4,
+      now: BASE_DATE,
+    });
+
+    expect(result.nextLevel).toBe(2);
   });
 });

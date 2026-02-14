@@ -9,10 +9,14 @@ import {
   type SessionLoopType,
   getSessionConfigForLoop,
   getStageBalanceForLoop,
+  planAdaptiveSession,
   resolveSessionLoopType,
   scheduleReview,
   createNewCard,
   DEFAULT_FSRS_WEIGHTS,
+  type AdaptiveDifficultyLevel,
+  type AdaptiveSessionItem,
+  type AdaptiveSessionTopic,
   type FsrsCard,
   type FsrsCardState,
   type FsrsRating,
@@ -146,15 +150,21 @@ function stateToProgress(state: SessionState): SessionProgress {
 type SessionStartItem = {
   id: string;
   itemType: string;
-  stage: string;
+  stage: 'encounter' | 'analysis' | 'return';
   hemisphereMode: string;
+  topicId: string;
   difficultyLevel: number;
   bloomLevel: string;
   estimatedDurationS: number;
   body: unknown;
   isReviewable: boolean;
   interleaveEligible: boolean;
+  similarityTags: string[];
 };
+
+function isSessionStageValue(value: string): value is SessionStartItem['stage'] {
+  return value === 'encounter' || value === 'analysis' || value === 'return';
+}
 
 function dedupeIds(ids: string[]): string[] {
   const seen = new Set<string>();
@@ -165,35 +175,31 @@ function dedupeIds(ids: string[]): string[] {
   });
 }
 
+function clampAdaptiveLevel(level: number): AdaptiveDifficultyLevel {
+  if (level <= 1) return 1;
+  if (level >= 4) return 4;
+  return Math.round(level) as AdaptiveDifficultyLevel;
+}
+
 function buildItemQueueForSessionType(
-  allItems: SessionStartItem[],
-  sessionType: SessionLoopType
+  sessionType: SessionLoopType,
+  encounterIds: string[],
+  analysisIds: string[],
+  returnIds: string[],
+  reflectionId: string | null
 ): string[] {
-  if (sessionType === 'standard' || sessionType === 'extended') {
-    return allItems.map((item) => item.id);
+  if (sessionType !== 'quick') {
+    return dedupeIds([...encounterIds, ...analysisIds, ...returnIds]);
   }
 
   // quick loop
-  const encounter = allItems.filter((item) => item.stage === 'encounter');
-  const analysis = allItems.filter((item) => item.stage === 'analysis');
-  const returnItems = allItems.filter((item) => item.stage === 'return');
-
-  const quickEncounter = encounter.slice(0, 1);
-  const reviewFirstAnalysis = analysis.filter((item) => item.isReviewable);
-  const analysisPool =
-    reviewFirstAnalysis.length > 0 ? reviewFirstAnalysis : analysis;
-  const quickAnalysis = analysisPool.slice(0, 8);
-  const reflectionItem =
-    returnItems.find((item) => item.itemType === 'reflection_prompt') ??
-    returnItems[0];
-
   const quickQueue = dedupeIds([
-    ...quickEncounter.map((item) => item.id),
-    ...quickAnalysis.map((item) => item.id),
-    ...(reflectionItem ? [reflectionItem.id] : []),
+    ...encounterIds.slice(0, 1),
+    ...analysisIds,
+    ...(reflectionId ? [reflectionId] : []),
   ]);
 
-  return quickQueue.length > 0 ? quickQueue : allItems.map((item) => item.id);
+  return quickQueue;
 }
 
 // ─── GET /active ──────────────────────────────────────────────────────────────
@@ -404,7 +410,6 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
 
   const topicId = parseResult.data.topicId;
   const sessionType = resolveSessionLoopType(parseResult.data.sessionType);
-  const stageBalance = getStageBalanceForLoop(sessionType);
   const sessionConfig = getSessionConfigForLoop(sessionType);
 
   try {
@@ -443,31 +448,26 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
       );
     }
 
-    // ── 4. Fetch all content items for this topic, ordered by stage ────────────
-    //
-    // The ordering encodes the learning arc: encounter → analysis → return.
-    // Within each stage items are ordered by difficulty to scaffold learning.
-    const allItems = await db
+    // ── 4. Fetch active content pool (primary + interleaving candidates) ──────
+    const allItemRows = await db
       .select({
         id: schema.contentItems.id,
         itemType: schema.contentItems.itemType,
         stage: schema.contentItems.stage,
         hemisphereMode: schema.contentItems.hemisphereMode,
+        topicId: schema.contentItems.topicId,
         difficultyLevel: schema.contentItems.difficultyLevel,
         bloomLevel: schema.contentItems.bloomLevel,
         estimatedDurationS: schema.contentItems.estimatedDurationS,
         body: schema.contentItems.body,
         isReviewable: schema.contentItems.isReviewable,
         interleaveEligible: schema.contentItems.interleaveEligible,
+        similarityTags: schema.contentItems.similarityTags,
       })
       .from(schema.contentItems)
-      .where(
-        and(
-          eq(schema.contentItems.topicId, topicId),
-          eq(schema.contentItems.isActive, true)
-        )
-      )
+      .where(eq(schema.contentItems.isActive, true))
       .orderBy(
+        schema.contentItems.topicId,
         sql`CASE ${schema.contentItems.stage}
               WHEN 'encounter' THEN 1
               WHEN 'analysis'  THEN 2
@@ -477,7 +477,193 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
         schema.contentItems.difficultyLevel
       );
 
-    const itemIds = buildItemQueueForSessionType(allItems, sessionType);
+    const allItems: SessionStartItem[] = allItemRows
+      .filter((row) => isSessionStageValue(row.stage))
+      .map((row) => ({
+        id: row.id,
+        itemType: row.itemType,
+        stage: row.stage,
+        hemisphereMode: row.hemisphereMode,
+        topicId: row.topicId,
+        difficultyLevel: row.difficultyLevel,
+        bloomLevel: row.bloomLevel,
+        estimatedDurationS: row.estimatedDurationS,
+        body: row.body,
+        isReviewable: row.isReviewable,
+        interleaveEligible: row.interleaveEligible,
+        similarityTags: row.similarityTags,
+      }));
+
+    const primaryItems = allItems.filter((item) => item.topicId === topicId);
+    if (primaryItems.length === 0) {
+      return c.json(
+        { error: 'Not Found', message: 'No active content available for this topic' },
+        404
+      );
+    }
+
+    const encounterPool = primaryItems.filter((item) => item.stage === 'encounter');
+    const primaryAnalysisPool = primaryItems.filter((item) => item.stage === 'analysis');
+    const returnPool = primaryItems.filter((item) => item.stage === 'return');
+
+    const analysisPool = allItems.filter(
+      (item) =>
+        item.stage === 'analysis' &&
+        (item.topicId === topicId || item.interleaveEligible)
+    );
+
+    const analysisItemIds = analysisPool.map((item) => item.id);
+    const itemKcRows = analysisItemIds.length
+      ? await db
+          .select({
+            contentItemId: schema.contentItemKcs.contentItemId,
+            kcId: schema.contentItemKcs.kcId,
+          })
+          .from(schema.contentItemKcs)
+          .where(sql`${schema.contentItemKcs.contentItemId} = ANY(${analysisItemIds}::uuid[])`)
+      : [];
+
+    const kcByItem = new Map<string, string>();
+    for (const row of itemKcRows) {
+      if (!kcByItem.has(row.contentItemId)) {
+        kcByItem.set(row.contentItemId, row.kcId);
+      }
+    }
+
+    const adaptiveTopicsMap = new Map<string, AdaptiveSessionItem[]>();
+    for (const item of analysisPool) {
+      const kcId = kcByItem.get(item.id);
+      if (!kcId) continue;
+      const bucket = adaptiveTopicsMap.get(item.topicId) ?? [];
+      bucket.push({
+        itemId: item.id,
+        kcId,
+        topicId: item.topicId,
+        stage: 'analysis',
+        difficultyLevel: item.difficultyLevel,
+        interleaveEligible: item.interleaveEligible,
+        isReviewable: item.isReviewable,
+        similarityTags: item.similarityTags,
+      });
+      adaptiveTopicsMap.set(item.topicId, bucket);
+    }
+
+    const adaptiveTopics: AdaptiveSessionTopic[] = [...adaptiveTopicsMap.entries()].map(
+      ([adaptiveTopicId, items]) => ({
+        topicId: adaptiveTopicId,
+        items,
+      })
+    );
+
+    const memoryRows = analysisItemIds.length
+      ? await db
+          .select({
+            itemId: schema.fsrsMemoryState.itemId,
+            stability: schema.fsrsMemoryState.stability,
+            difficulty: schema.fsrsMemoryState.difficulty,
+            retrievability: schema.fsrsMemoryState.retrievability,
+            state: schema.fsrsMemoryState.state,
+            lastReview: schema.fsrsMemoryState.lastReview,
+            reviewCount: schema.fsrsMemoryState.reviewCount,
+            lapseCount: schema.fsrsMemoryState.lapseCount,
+          })
+          .from(schema.fsrsMemoryState)
+          .where(
+            and(
+              eq(schema.fsrsMemoryState.userId, user.id),
+              sql`${schema.fsrsMemoryState.itemId} = ANY(${analysisItemIds}::uuid[])`
+            )
+          )
+      : [];
+
+    const memoryStates = new Map<string, FsrsCard>();
+    for (const row of memoryRows) {
+      memoryStates.set(row.itemId, {
+        stability: row.stability,
+        difficulty: row.difficulty,
+        retrievability: row.retrievability,
+        state: row.state as FsrsCardState,
+        lastReview: row.lastReview ?? null,
+        reviewCount: row.reviewCount,
+        lapseCount: row.lapseCount,
+      });
+    }
+
+    const primaryKcStates = await db
+      .select({
+        lhAccuracy: schema.learnerKcState.lhAccuracy,
+        rhScore: schema.learnerKcState.rhScore,
+        difficultyTier: schema.learnerKcState.difficultyTier,
+      })
+      .from(schema.learnerKcState)
+      .innerJoin(
+        schema.knowledgeComponents,
+        eq(schema.learnerKcState.kcId, schema.knowledgeComponents.id)
+      )
+      .where(
+        and(
+          eq(schema.learnerKcState.userId, user.id),
+          eq(schema.knowledgeComponents.topicId, topicId)
+        )
+      );
+
+    const hemisphereBalanceScore =
+      primaryKcStates.length > 0
+        ? primaryKcStates.reduce((acc, row) => acc + (row.rhScore - row.lhAccuracy), 0) /
+          primaryKcStates.length
+        : 0;
+
+    const currentLevel = clampAdaptiveLevel(
+      primaryKcStates.length > 0
+        ? primaryKcStates.reduce((acc, row) => acc + row.difficultyTier, 0) /
+            primaryKcStates.length
+        : 1
+    );
+
+    const adaptivePlan =
+      adaptiveTopics.length > 0
+        ? planAdaptiveSession({
+            primaryTopicId: topicId,
+            availableTopics: adaptiveTopics,
+            memoryStates,
+            currentLevel,
+            sessionType,
+            hemisphereBalanceScore,
+            now: new Date(),
+          })
+        : null;
+
+    const selectedAnalysisIds =
+      adaptivePlan?.selectedItems.map((item) => item.itemId) ?? [];
+
+    const analysisIds =
+      selectedAnalysisIds.length > 0
+        ? selectedAnalysisIds
+        : primaryAnalysisPool.map((item) => item.id).slice(
+            0,
+            sessionType === 'quick' ? 8 : sessionType === 'extended' ? 28 : 16
+          );
+
+    const reflectionId =
+      returnPool.find((item) => item.itemType === 'reflection_prompt')?.id ??
+      returnPool[0]?.id ??
+      null;
+
+    const itemIds = buildItemQueueForSessionType(
+      sessionType,
+      encounterPool.map((item) => item.id),
+      analysisIds,
+      returnPool.map((item) => item.id),
+      reflectionId
+    );
+
+    if (itemIds.length === 0) {
+      return c.json(
+        { error: 'Internal Server Error', message: 'Unable to compose a session queue' },
+        500
+      );
+    }
+
     const itemById = new Map(allItems.map((item) => [item.id, item]));
     const queuedItems = itemIds
       .map((id) => itemById.get(id))
@@ -486,10 +672,16 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
     const encounterItems = queuedItems.filter((item) => item.stage === 'encounter');
 
     // Compute planned balance from the selected queue.
-    const newItemCount = queuedItems.filter((item) => !item.isReviewable).length;
-    const reviewItemCount = queuedItems.filter((item) => item.isReviewable).length;
-    const interleavedCount = queuedItems.filter((item) => item.interleaveEligible).length;
+    const analysisQueued = queuedItems.filter((item) => item.stage === 'analysis');
+    const newItemCount = analysisQueued.filter((item) => {
+      const card = memoryStates.get(item.id);
+      return !card || card.state === 'new';
+    }).length;
+    const reviewItemCount = analysisQueued.length - newItemCount;
+    const interleavedCount = analysisQueued.filter((item) => item.topicId !== topicId).length;
     const plannedBalance = { newItemCount, reviewItemCount, interleavedCount };
+
+    const stageBalance = adaptivePlan?.stageBalance ?? getStageBalanceForLoop(sessionType);
 
     // ── 5. Build the initial session progress state ────────────────────────────
     const now = Date.now();
@@ -536,6 +728,13 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
         sessionId: newSession.id,
         sessionType,
         stageBalance,
+        adaptive: adaptivePlan
+          ? {
+              level: adaptivePlan.level,
+              nextLevel: adaptivePlan.nextLevel,
+              rationale: adaptivePlan.rationale,
+            }
+          : null,
         targetDurationS: Math.round(
           (sessionConfig.targetEncounterDurationMs +
             sessionConfig.targetAnalysisDurationMs +
