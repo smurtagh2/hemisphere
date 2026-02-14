@@ -17,6 +17,7 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 
 import { createSessionSlice, type SessionSlice } from './session-slice';
 import { createQueueSlice, type QueueSlice } from './queue-slice';
@@ -134,7 +135,7 @@ export const useHasDeadLetters = () => useSessionStore((s) => s.hasDeadLetters()
  * Useful in event handlers where only actions are needed.
  */
 export const useSessionActions = () =>
-  useSessionStore((s) => ({
+  useSessionStore(useShallow((s) => ({
     // Session actions
     loadSession: s.loadSession,
     hydrateSession: s.hydrateSession,
@@ -170,7 +171,7 @@ export const useSessionActions = () =>
     pruneConfirmed: s.pruneConfirmed,
     clearOutbox: s.clearOutbox,
     rehydrateOutbox: s.rehydrateOutbox,
-  }));
+  })));
 
 // ============================================================================
 // Re-export slice types for consumers
