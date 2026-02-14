@@ -178,14 +178,18 @@ export interface ActiveSessionInfo {
   nextTopicTitle: string | null;
 }
 
+export type SessionLoopType = 'quick' | 'standard' | 'extended';
+
 export interface SessionStartPayload {
   topicId: string;
+  sessionType?: SessionLoopType;
 }
 
 export interface SessionRecord {
   id: string;
   topicId: string;
   topicTitle: string;
+  sessionType?: SessionLoopType;
   startedAt: string;
   completedAt: string | null;
   accuracy: number | null;

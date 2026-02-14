@@ -6,6 +6,10 @@ import {
   sessionStateReducer,
   type SessionState,
   type SessionStage,
+  type SessionLoopType,
+  getSessionConfigForLoop,
+  getStageBalanceForLoop,
+  resolveSessionLoopType,
   scheduleReview,
   createNewCard,
   DEFAULT_FSRS_WEIGHTS,
@@ -22,6 +26,7 @@ export const sessionRoutes = new Hono<AppEnv>();
 
 const startSessionSchema = z.object({
   topicId: z.string().uuid('topicId must be a valid UUID'),
+  sessionType: z.enum(['quick', 'standard', 'extended']).optional(),
 });
 
 const responseSchema = z.object({
@@ -53,6 +58,7 @@ const completeSessionSchema = z.object({
  * progress.  Created/populated by /start and consumed + mutated by /response.
  */
 interface SessionProgress {
+  sessionType?: SessionLoopType;
   itemQueue: string[]; // Ordered content-item IDs for the full session
   currentItemIndex: number; // 0-based index of the next item to serve
   currentStage: SessionStage; // Encounter | Analysis | Return
@@ -109,7 +115,7 @@ function progressToState(
     returnComplete: progress.returnComplete,
     abandonedAtStage: null,
     abandonmentReason: null,
-    sessionType: 'standard',
+    sessionType: progress.sessionType ?? 'standard',
     plannedBalance: { newItemCount: 0, reviewItemCount: 0, interleavedCount: 0 },
   };
 }
@@ -117,6 +123,7 @@ function progressToState(
 /** Extract a SessionProgress from a post-reducer SessionState. */
 function stateToProgress(state: SessionState): SessionProgress {
   return {
+    sessionType: resolveSessionLoopType(state.sessionType),
     itemQueue: state.itemQueue,
     currentItemIndex: state.currentItemIndex,
     currentStage: (state.currentStage ?? 'encounter') as SessionStage,
@@ -134,6 +141,59 @@ function stateToProgress(state: SessionState): SessionProgress {
     pausedDurationMs: state.pausedDurationMs,
     pausedAt: state.pausedAt,
   };
+}
+
+type SessionStartItem = {
+  id: string;
+  itemType: string;
+  stage: string;
+  hemisphereMode: string;
+  difficultyLevel: number;
+  bloomLevel: string;
+  estimatedDurationS: number;
+  body: unknown;
+  isReviewable: boolean;
+  interleaveEligible: boolean;
+};
+
+function dedupeIds(ids: string[]): string[] {
+  const seen = new Set<string>();
+  return ids.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function buildItemQueueForSessionType(
+  allItems: SessionStartItem[],
+  sessionType: SessionLoopType
+): string[] {
+  if (sessionType === 'standard' || sessionType === 'extended') {
+    return allItems.map((item) => item.id);
+  }
+
+  // quick loop
+  const encounter = allItems.filter((item) => item.stage === 'encounter');
+  const analysis = allItems.filter((item) => item.stage === 'analysis');
+  const returnItems = allItems.filter((item) => item.stage === 'return');
+
+  const quickEncounter = encounter.slice(0, 1);
+  const reviewFirstAnalysis = analysis.filter((item) => item.isReviewable);
+  const analysisPool =
+    reviewFirstAnalysis.length > 0 ? reviewFirstAnalysis : analysis;
+  const quickAnalysis = analysisPool.slice(0, 8);
+  const reflectionItem =
+    returnItems.find((item) => item.itemType === 'reflection_prompt') ??
+    returnItems[0];
+
+  const quickQueue = dedupeIds([
+    ...quickEncounter.map((item) => item.id),
+    ...quickAnalysis.map((item) => item.id),
+    ...(reflectionItem ? [reflectionItem.id] : []),
+  ]);
+
+  return quickQueue.length > 0 ? quickQueue : allItems.map((item) => item.id);
 }
 
 // ─── GET /active ──────────────────────────────────────────────────────────────
@@ -206,7 +266,13 @@ sessionRoutes.get('/active', authMiddleware, async (c) => {
       );
     }
 
-    const progress = rawDecisions as SessionProgress;
+    const sessionType = resolveSessionLoopType(
+      typeof session.sessionType === 'string' ? session.sessionType : null
+    );
+    const progress = {
+      ...(rawDecisions as SessionProgress),
+      sessionType,
+    } satisfies SessionProgress;
 
     if (
       !Array.isArray(progress.itemQueue) ||
@@ -264,6 +330,7 @@ sessionRoutes.get('/active', authMiddleware, async (c) => {
       active: true,
       sessionId: session.id,
       topicId: session.topicId,
+      sessionType,
       stage: progress.currentStage,
       currentItemIndex: progress.currentItemIndex,
       startedAt: progress.startedAt,
@@ -335,7 +402,10 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
     );
   }
 
-  const { topicId } = parseResult.data;
+  const topicId = parseResult.data.topicId;
+  const sessionType = resolveSessionLoopType(parseResult.data.sessionType);
+  const stageBalance = getStageBalanceForLoop(sessionType);
+  const sessionConfig = getSessionConfigForLoop(sessionType);
 
   try {
     // ── 2. Verify the topic exists ─────────────────────────────────────────────
@@ -407,18 +477,24 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
         schema.contentItems.difficultyLevel
       );
 
-    const encounterItems = allItems.filter((item) => item.stage === 'encounter');
-    const itemIds = allItems.map((item) => item.id);
+    const itemIds = buildItemQueueForSessionType(allItems, sessionType);
+    const itemById = new Map(allItems.map((item) => [item.id, item]));
+    const queuedItems = itemIds
+      .map((id) => itemById.get(id))
+      .filter((item): item is SessionStartItem => item !== undefined);
 
-    // Compute planned balance from the full item set
-    const newItemCount = allItems.filter((item) => !item.isReviewable).length;
-    const reviewItemCount = allItems.filter((item) => item.isReviewable).length;
-    const interleavedCount = allItems.filter((item) => item.interleaveEligible).length;
+    const encounterItems = queuedItems.filter((item) => item.stage === 'encounter');
+
+    // Compute planned balance from the selected queue.
+    const newItemCount = queuedItems.filter((item) => !item.isReviewable).length;
+    const reviewItemCount = queuedItems.filter((item) => item.isReviewable).length;
+    const interleavedCount = queuedItems.filter((item) => item.interleaveEligible).length;
     const plannedBalance = { newItemCount, reviewItemCount, interleavedCount };
 
     // ── 5. Build the initial session progress state ────────────────────────────
     const now = Date.now();
     const initialProgress: SessionProgress = {
+      sessionType,
       itemQueue: itemIds,
       currentItemIndex: 0,
       currentStage: 'encounter',
@@ -443,7 +519,7 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
       .values({
         userId: user.id,
         topicId,
-        sessionType: 'standard',
+        sessionType,
         status: 'in_progress',
         plannedBalance,
         itemCount: itemIds.length,
@@ -458,6 +534,13 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
     return c.json(
       {
         sessionId: newSession.id,
+        sessionType,
+        stageBalance,
+        targetDurationS: Math.round(
+          (sessionConfig.targetEncounterDurationMs +
+            sessionConfig.targetAnalysisDurationMs +
+            sessionConfig.targetReturnDurationMs) / 1000
+        ),
         stage: 'encounter' as const,
         items: encounterItems.map((item) => ({
           id: item.id,
@@ -596,7 +679,14 @@ sessionRoutes.post('/response', authMiddleware, async (c) => {
       );
     }
 
-    const progress = rawDecisions as SessionProgress;
+    const sessionType = resolveSessionLoopType(
+      typeof session.sessionType === 'string' ? session.sessionType : null
+    );
+    const sessionConfig = getSessionConfigForLoop(sessionType);
+    const progress = {
+      ...(rawDecisions as SessionProgress),
+      sessionType,
+    } satisfies SessionProgress;
 
     if (
       !Array.isArray(progress.itemQueue) ||
@@ -694,11 +784,15 @@ sessionRoutes.post('/response', authMiddleware, async (c) => {
     let machineState = progressToState(sessionId, user.id, session.topicId, progress);
 
     // COMPLETE_ACTIVITY increments currentItemIndex and updates stage durations
-    const activityResult = sessionStateReducer(machineState, {
-      type: 'COMPLETE_ACTIVITY',
-      activityId: itemId,
-      timestamp,
-    });
+    const activityResult = sessionStateReducer(
+      machineState,
+      {
+        type: 'COMPLETE_ACTIVITY',
+        activityId: itemId,
+        timestamp,
+      },
+      sessionConfig
+    );
 
     if (!activityResult.success) {
       return c.json(
@@ -750,10 +844,14 @@ sessionRoutes.post('/response', authMiddleware, async (c) => {
 
       if (currentStageAfterActivity === 'return') {
         // Attempt to complete the full session (Return stage done)
-        const completeResult = sessionStateReducer(stageMarkedComplete, {
-          type: 'COMPLETE_SESSION',
-          timestamp,
-        });
+        const completeResult = sessionStateReducer(
+          stageMarkedComplete,
+          {
+            type: 'COMPLETE_SESSION',
+            timestamp,
+          },
+          sessionConfig
+        );
 
         if (completeResult.success) {
           sessionComplete = true;
@@ -778,10 +876,14 @@ sessionRoutes.post('/response', authMiddleware, async (c) => {
         }
       } else {
         // Attempt Encounter→Analysis or Analysis→Return transition
-        const advanceResult = sessionStateReducer(stageMarkedComplete, {
-          type: 'ADVANCE_STAGE',
-          timestamp,
-        });
+        const advanceResult = sessionStateReducer(
+          stageMarkedComplete,
+          {
+            type: 'ADVANCE_STAGE',
+            timestamp,
+          },
+          sessionConfig
+        );
 
         if (advanceResult.success) {
           machineState = advanceResult.newState;

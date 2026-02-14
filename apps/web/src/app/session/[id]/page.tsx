@@ -29,6 +29,7 @@ import {
   completeSession,
   getToken,
   type SessionRecord,
+  type SessionLoopType,
 } from '@/lib/api';
 
 import {
@@ -168,6 +169,11 @@ export default function SessionPage() {
 
   const rawId = params.id;           // "new" or a real session ID
   const topicId = searchParams.get('topicId') ?? '';
+  const sessionTypeParam = searchParams.get('sessionType');
+  const sessionType: SessionLoopType =
+    sessionTypeParam === 'quick' || sessionTypeParam === 'extended'
+      ? sessionTypeParam
+      : 'standard';
 
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [stage, setStage] = useState<Stage>('loading');
@@ -188,6 +194,7 @@ export default function SessionPage() {
           id: 'demo',
           topicId: topicId || 'demo-topic',
           topicTitle: topicId ? topicId.replace(/-/g, ' ') : 'Demo Topic',
+          sessionType,
           startedAt: new Date().toISOString(),
           completedAt: null,
           accuracy: null,
@@ -196,7 +203,7 @@ export default function SessionPage() {
         if (!cancelled) {
           setSession(stub);
           setStage('encounter');
-          trackSessionStarted(stub.id, 'full', stub.topicId);
+          trackSessionStarted(stub.id, stub.sessionType ?? sessionType, stub.topicId);
           sessionStartRef.current = Date.now();
         }
         return;
@@ -211,7 +218,7 @@ export default function SessionPage() {
             setStage('error');
             return;
           }
-          rec = await startSession({ topicId });
+          rec = await startSession({ topicId, sessionType });
           window.history.replaceState(null, '', `/session/${rec.id}`);
         } else {
           rec = await getSession(rawId);
@@ -220,7 +227,7 @@ export default function SessionPage() {
         if (!cancelled) {
           setSession(rec);
           setStage('encounter');
-          trackSessionStarted(rec.id, 'full', rec.topicId);
+          trackSessionStarted(rec.id, rec.sessionType ?? sessionType, rec.topicId);
           sessionStartRef.current = Date.now();
         }
       } catch (err) {
@@ -233,7 +240,7 @@ export default function SessionPage() {
 
     bootstrap();
     return () => { cancelled = true; };
-  }, [rawId, topicId]);
+  }, [rawId, topicId, sessionType]);
 
   // ---- Stage handlers ----
 
@@ -259,7 +266,11 @@ export default function SessionPage() {
       // Non-fatal — still navigate to the complete page
     }
 
-    trackSessionCompleted(session.id, 'full', Date.now() - sessionStartRef.current);
+    trackSessionCompleted(
+      session.id,
+      session.sessionType ?? sessionType,
+      Date.now() - sessionStartRef.current
+    );
     router.push(`/session/${session.id}/complete`);
   }
 

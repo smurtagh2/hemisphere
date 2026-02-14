@@ -21,6 +21,27 @@
 export type SessionStage = 'encounter' | 'analysis' | 'return';
 
 /**
+ * Supported session loop variants.
+ */
+export const SESSION_LOOP_TYPES = ['quick', 'standard', 'extended'] as const;
+export type SessionLoopType = (typeof SESSION_LOOP_TYPES)[number];
+
+/**
+ * Stage-time allocation as percentages of total session time.
+ */
+export interface SessionStageBalance {
+  encounter: number;
+  analysis: number;
+  return: number;
+}
+
+const SESSION_STAGE_BALANCE_BY_LOOP: Record<SessionLoopType, SessionStageBalance> = {
+  quick: { encounter: 0.1, analysis: 0.7, return: 0.2 },
+  standard: { encounter: 0.25, analysis: 0.5, return: 0.25 },
+  extended: { encounter: 0.25, analysis: 0.5, return: 0.25 },
+};
+
+/**
  * Session status throughout its lifecycle
  */
 export type SessionStatus =
@@ -102,7 +123,7 @@ export interface SessionState {
   abandonmentReason: string | null;
 
   // Metadata
-  sessionType: string; // e.g., 'standard', 'review', 'diagnostic'
+  sessionType: string; // e.g., 'quick', 'standard', 'extended'
   plannedBalance: {
     newItemCount: number;
     reviewItemCount: number;
@@ -285,6 +306,52 @@ export const defaultSessionConfig: SessionConfig = {
 
   requireAllActivitiesComplete: false, // Allow flexible pacing
 };
+
+const quickSessionConfig: SessionConfig = {
+  minEncounterDurationMs: 20_000, // 20 sec
+  minAnalysisDurationMs: 180_000, // 3 min
+  minReturnDurationMs: 20_000, // 20 sec
+  targetEncounterDurationMs: 30_000, // 30 sec
+  targetAnalysisDurationMs: 240_000, // 4 min
+  targetReturnDurationMs: 30_000, // 30 sec
+  maxPauseDurationMs: 900_000, // 15 min
+  requireAllActivitiesComplete: false,
+};
+
+const extendedSessionConfig: SessionConfig = {
+  ...defaultSessionConfig,
+  // Keep guard thresholds unchanged to avoid trapping sessions if queues finish quickly.
+  // Extended mode stretches target pacing, not minimum gate durations.
+  targetEncounterDurationMs: 420_000, // 7 min
+  targetAnalysisDurationMs: 1_020_000, // 17 min
+  targetReturnDurationMs: 420_000, // 7 min
+  maxPauseDurationMs: 2_700_000, // 45 min
+};
+
+const SESSION_CONFIG_BY_LOOP: Record<SessionLoopType, SessionConfig> = {
+  quick: quickSessionConfig,
+  standard: defaultSessionConfig,
+  extended: extendedSessionConfig,
+};
+
+export function isSessionLoopType(value: string): value is SessionLoopType {
+  return (SESSION_LOOP_TYPES as readonly string[]).includes(value);
+}
+
+export function resolveSessionLoopType(value: string | null | undefined): SessionLoopType {
+  if (!value) return 'standard';
+  return isSessionLoopType(value) ? value : 'standard';
+}
+
+export function getSessionConfigForLoop(loopType: SessionLoopType): SessionConfig {
+  const config = SESSION_CONFIG_BY_LOOP[loopType];
+  return { ...config };
+}
+
+export function getStageBalanceForLoop(loopType: SessionLoopType): SessionStageBalance {
+  const balance = SESSION_STAGE_BALANCE_BY_LOOP[loopType];
+  return { ...balance };
+}
 
 // ============================================================================
 // State Machine Contracts

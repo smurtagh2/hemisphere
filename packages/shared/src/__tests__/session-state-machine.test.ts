@@ -18,6 +18,10 @@ import {
   isLeftHemisphereStage,
   defaultGuards,
   defaultSessionConfig,
+  getSessionConfigForLoop,
+  getStageBalanceForLoop,
+  resolveSessionLoopType,
+  isSessionLoopType,
   type SessionState,
 } from '../session-state-machine';
 import {
@@ -159,6 +163,48 @@ function returnStateWithDuration(durationMs: number, complete = true): SessionSt
 // ============================================================================
 
 describe('Session State Machine', () => {
+  describe('Loop Variants', () => {
+    it('resolves known loop types and defaults unknown to standard', () => {
+      expect(resolveSessionLoopType('quick')).toBe('quick');
+      expect(resolveSessionLoopType('standard')).toBe('standard');
+      expect(resolveSessionLoopType('extended')).toBe('extended');
+      expect(resolveSessionLoopType('unexpected')).toBe('standard');
+      expect(resolveSessionLoopType(undefined)).toBe('standard');
+    });
+
+    it('detects supported loop types', () => {
+      expect(isSessionLoopType('quick')).toBe(true);
+      expect(isSessionLoopType('standard')).toBe(true);
+      expect(isSessionLoopType('extended')).toBe(true);
+      expect(isSessionLoopType('review')).toBe(false);
+    });
+
+    it('quick loop config has shorter minimum durations than standard', () => {
+      const quick = getSessionConfigForLoop('quick');
+      expect(quick.minEncounterDurationMs).toBeLessThan(defaultSessionConfig.minEncounterDurationMs);
+      expect(quick.minAnalysisDurationMs).toBeLessThan(defaultSessionConfig.minAnalysisDurationMs);
+      expect(quick.minReturnDurationMs).toBeLessThan(defaultSessionConfig.minReturnDurationMs);
+    });
+
+    it('extended loop keeps standard mins but increases target durations', () => {
+      const extended = getSessionConfigForLoop('extended');
+      expect(extended.minEncounterDurationMs).toBe(defaultSessionConfig.minEncounterDurationMs);
+      expect(extended.minAnalysisDurationMs).toBe(defaultSessionConfig.minAnalysisDurationMs);
+      expect(extended.minReturnDurationMs).toBe(defaultSessionConfig.minReturnDurationMs);
+      expect(extended.targetEncounterDurationMs).toBeGreaterThan(defaultSessionConfig.targetEncounterDurationMs);
+      expect(extended.targetAnalysisDurationMs).toBeGreaterThan(defaultSessionConfig.targetAnalysisDurationMs);
+      expect(extended.targetReturnDurationMs).toBeGreaterThan(defaultSessionConfig.targetReturnDurationMs);
+    });
+
+    it('returns the expected stage balance for quick loops', () => {
+      expect(getStageBalanceForLoop('quick')).toEqual({
+        encounter: 0.1,
+        analysis: 0.7,
+        return: 0.2,
+      });
+    });
+  });
+
   describe('Initial State Creation', () => {
     it('should create valid initial state', () => {
       const state = makeReadyState();

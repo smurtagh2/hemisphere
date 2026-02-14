@@ -31,6 +31,7 @@ import {
   logout,
   type ActiveSessionInfo,
   type Topic,
+  type SessionLoopType,
 } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
@@ -68,14 +69,18 @@ function SessionStartCard({
   topics,
   topicsLoading,
   selectedTopicId,
+  selectedSessionType,
   onSelectTopic,
+  onSelectSessionType,
   onBegin,
   starting,
 }: {
   topics: Topic[];
   topicsLoading: boolean;
   selectedTopicId: string;
+  selectedSessionType: SessionLoopType;
   onSelectTopic: (id: string) => void;
+  onSelectSessionType: (type: SessionLoopType) => void;
   onBegin: () => void;
   starting: boolean;
 }) {
@@ -122,6 +127,26 @@ function SessionStartCard({
             </select>
           </div>
         )}
+
+        <div className="space-y-2 mt-4">
+          <label
+            htmlFor="session-type-select"
+            className="block text-sm font-medium text-text-primary mb-1"
+          >
+            Session length
+          </label>
+          <select
+            id="session-type-select"
+            value={selectedSessionType}
+            onChange={(e) => onSelectSessionType(e.target.value as SessionLoopType)}
+            className="w-full bg-bg-secondary text-text-primary border border-transparent rounded-element px-4 py-3 text-base focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-[border-color] duration-short"
+            disabled={starting}
+          >
+            <option value="quick">Quick Loop (~5-7 min)</option>
+            <option value="standard">Standard Loop (~12-18 min)</option>
+            <option value="extended">Extended Loop (~25-35 min)</option>
+          </select>
+        </div>
       </CardContent>
 
       <CardFooter>
@@ -188,6 +213,7 @@ export default function DashboardPage() {
   const [topicsLoading, setTopicsLoading] = useState(true);
 
   const [selectedTopicId, setSelectedTopicId] = useState('');
+  const [selectedSessionType, setSelectedSessionType] = useState<SessionLoopType>('standard');
   const [starting, setStarting] = useState(false);
 
   // Fetch active session info (due reviews, etc.)
@@ -213,7 +239,9 @@ export default function DashboardPage() {
     if (!selectedTopicId) return;
     setStarting(true);
     // Navigate to /session/new — the session page handles creation
-    router.push(`/session/new?topicId=${encodeURIComponent(selectedTopicId)}`);
+    router.push(
+      `/session/new?topicId=${encodeURIComponent(selectedTopicId)}&sessionType=${encodeURIComponent(selectedSessionType)}`
+    );
   }
 
   function handleLogout() {
@@ -274,7 +302,9 @@ export default function DashboardPage() {
             topics={topics}
             topicsLoading={topicsLoading}
             selectedTopicId={selectedTopicId}
+            selectedSessionType={selectedSessionType}
             onSelectTopic={setSelectedTopicId}
+            onSelectSessionType={setSelectedSessionType}
             onBegin={handleBegin}
             starting={starting}
           />
