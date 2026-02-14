@@ -15,6 +15,7 @@
 import React from 'react';
 import { TopBar } from '../../ui/TopBar';
 import { useSessionStore } from '../../../lib/store';
+import { useShallow } from 'zustand/react/shallow';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -39,7 +40,7 @@ export interface AnalysisProgressProps {
 
 export function AnalysisProgress({ onBack, className = '' }: AnalysisProgressProps) {
   // Pull the analysis-stage items and current position from the queue slice.
-  const items = useSessionStore((s) => s.getItemsByStage('analysis'));
+  const items = useSessionStore(useShallow((s) => s.getItemsByStage('analysis')));
   const currentIndex = useSessionStore((s) => s.currentIndex);
 
   // The "analysis" queue might start at a non-zero global currentIndex.

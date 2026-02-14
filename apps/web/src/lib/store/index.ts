@@ -58,7 +58,7 @@ export const useSessionStore = create<SessionStore>()(
  * Subscribe to the active session state machine state.
  * Returns null when no session is loaded.
  */
-export const useSession = () => useSessionStore((s) => s.session);
+export const useSession = () => useSessionStore(useShallow((s) => s.session));
 
 /**
  * Subscribe to the current learning stage.
@@ -74,7 +74,7 @@ export const useSessionStatus = () => useSessionStore((s) => s.session?.status ?
 /**
  * Subscribe to the currently active queue item.
  */
-export const useCurrentQueueItem = () => useSessionStore((s) => s.getCurrentItem());
+export const useCurrentQueueItem = () => useSessionStore(useShallow((s) => s.getCurrentItem()));
 
 /**
  * Subscribe to overall session progress (0–1).
@@ -89,7 +89,7 @@ export const useStageProgress = () => useSessionStore((s) => s.getStageProgress(
 /**
  * Subscribe to the active interaction state (in-flight response).
  */
-export const useActiveInteraction = () => useSessionStore((s) => s.activeInteraction);
+export const useActiveInteraction = () => useSessionStore(useShallow((s) => s.activeInteraction));
 
 /**
  * Subscribe to session-level error state.
@@ -109,12 +109,12 @@ export const useResponseAccuracy = () => useSessionStore((s) => s.getAccuracy())
 /**
  * Subscribe to the outbox queue (pending / sending / retrying entries).
  */
-export const useOutboxQueue = () => useSessionStore((s) => s.outboxQueue);
+export const useOutboxQueue = () => useSessionStore(useShallow((s) => s.outboxQueue));
 
 /**
  * Subscribe to the dead-letter queue (responses that failed all retries).
  */
-export const useDeadLetterQueue = () => useSessionStore((s) => s.deadLetterQueue);
+export const useDeadLetterQueue = () => useSessionStore(useShallow((s) => s.deadLetterQueue));
 
 /**
  * Subscribe to the count of responses not yet confirmed by the server.
