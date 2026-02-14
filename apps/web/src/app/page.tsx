@@ -1,26 +1,12 @@
-import { StageComparison } from '@/components/StageExample';
+/**
+ * Root page — redirects to /dashboard.
+ *
+ * AuthGuard in the root layout handles the /login redirect if no token is
+ * present, so we just need to send authenticated users to the dashboard.
+ */
 
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-bg-primary">
-      <div className="container mx-auto py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-display font-bold text-text-primary mb-4">
-            Hemisphere Design System
-          </h1>
-          <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Stage-aware design tokens for the three learning stages: Encounter, Analysis, and Return
-          </p>
-        </div>
+import { redirect } from 'next/navigation';
 
-        <StageComparison />
-
-        <div className="mt-12 text-center">
-          <p className="text-sm text-text-secondary">
-            Each stage has its own color palette, typography, motion, and spacing.
-          </p>
-        </div>
-      </div>
-    </main>
-  );
+export default function RootPage() {
+  redirect('/dashboard');
 }

@@ -1,16 +1,22 @@
-import './globals.css';
 import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
+import './globals.css';
+import { AuthGuard } from '@/components/AuthGuard';
 
 export const metadata: Metadata = {
-  title: 'Hemisphere',
-  description: 'Hemisphere learning app shell',
+  title: 'Hemisphere Learning',
+  description: 'A hemisphere-aware learning platform',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body data-stage="encounter" data-theme="dark">
+        <AuthGuard>{children}</AuthGuard>
+      </body>
     </html>
   );
 }

@@ -6,6 +6,13 @@ import {
   sessionStateReducer,
   type SessionState,
   type SessionStage,
+  scheduleReview,
+  createNewCard,
+  DEFAULT_FSRS_WEIGHTS,
+  type FsrsCard,
+  type FsrsCardState,
+  type FsrsRating,
+  type FsrsWeights,
 } from '@hemisphere/shared';
 import { authMiddleware, type AppEnv } from '../middleware/auth.js';
 
@@ -925,9 +932,11 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
     // ── 3. Fetch assessment events for this session ─────────────────────────
     const events = await db
       .select({
+        contentItemId: schema.assessmentEvents.contentItemId,
         kcId: schema.assessmentEvents.kcId,
         isCorrect: schema.assessmentEvents.isCorrect,
         score: schema.assessmentEvents.score,
+        stage: schema.assessmentEvents.stage,
       })
       .from(schema.assessmentEvents)
       .where(eq(schema.assessmentEvents.sessionId, sessionId));
@@ -1019,7 +1028,190 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
         });
     }
 
-    // ── 7. Mark the session as completed ────────────────────────────────────
+    // ── 7. FSRS scheduling: schedule a review for every (item, KC) touched ──
+    //
+    // Per-item FSRS scheduling: for each content item that appeared in this
+    // session, we compute an FSRS rating from the learner's performance and
+    // upsert an fsrs_memory_state row with the new stability, difficulty,
+    // retrievability, and nextReview date.
+    //
+    // Rating mapping:
+    //   - No score / null      → 3 (Good)  [encounter/engagement items]
+    //   - score >= 0.9         → 4 (Easy)
+    //   - score >= 0.7         → 3 (Good)
+    //   - score >= 0.4         → 2 (Hard)
+    //   - score < 0.4          → 1 (Again)
+    //
+    // We use the user's personalised fsrs_parameters if they exist, otherwise
+    // DEFAULT_FSRS_WEIGHTS is used.
+
+    // Fetch user's FSRS parameters (if they have personalised ones)
+    const [userFsrsParams] = await db
+      .select({
+        weights: schema.fsrsParameters.weights,
+        targetRetention: schema.fsrsParameters.targetRetention,
+      })
+      .from(schema.fsrsParameters)
+      .where(eq(schema.fsrsParameters.userId, user.id))
+      .limit(1);
+
+    const fsrsWeights: FsrsWeights = userFsrsParams?.weights
+      ? { w: userFsrsParams.weights }
+      : DEFAULT_FSRS_WEIGHTS;
+    const targetRetention = userFsrsParams?.targetRetention ?? 0.9;
+
+    // Build a map: itemId → { kcId, rating } from the session events.
+    // When multiple events exist for the same item, we take the last score.
+    type ItemFsrsInfo = { kcId: string | null; score: number | null; stage: string };
+    const itemMap = new Map<string, ItemFsrsInfo>();
+    for (const event of events) {
+      itemMap.set(event.contentItemId, {
+        kcId: event.kcId,
+        score: event.score,
+        stage: event.stage,
+      });
+    }
+
+    // Helper: derive FSRS rating from a 0-1 score
+    function scoreToFsrsRating(score: number | null): FsrsRating {
+      if (score === null) return 3; // unscored items default to Good
+      if (score >= 0.9) return 4;  // Easy
+      if (score >= 0.7) return 3;  // Good
+      if (score >= 0.4) return 2;  // Hard
+      return 1;                    // Again
+    }
+
+    // Fetch existing memory states for all items in this session
+    const itemIds = [...itemMap.keys()];
+    let existingStates: Array<{
+      userId: string;
+      itemId: string;
+      stability: number;
+      difficulty: number;
+      retrievability: number;
+      state: string;
+      lastReview: Date | null;
+      reviewCount: number;
+      lapseCount: number;
+    }> = [];
+
+    if (itemIds.length > 0) {
+      existingStates = await db
+        .select({
+          userId: schema.fsrsMemoryState.userId,
+          itemId: schema.fsrsMemoryState.itemId,
+          stability: schema.fsrsMemoryState.stability,
+          difficulty: schema.fsrsMemoryState.difficulty,
+          retrievability: schema.fsrsMemoryState.retrievability,
+          state: schema.fsrsMemoryState.state,
+          lastReview: schema.fsrsMemoryState.lastReview,
+          reviewCount: schema.fsrsMemoryState.reviewCount,
+          lapseCount: schema.fsrsMemoryState.lapseCount,
+        })
+        .from(schema.fsrsMemoryState)
+        .where(
+          and(
+            eq(schema.fsrsMemoryState.userId, user.id),
+            sql`${schema.fsrsMemoryState.itemId} = ANY(${itemIds}::uuid[])`
+          )
+        );
+    }
+
+    const existingStateMap = new Map(existingStates.map((s) => [s.itemId, s]));
+
+    // Fetch the stage of each content item so we can record stageType
+    let itemStageRows: Array<{ id: string; stage: string; kcId: string | null }> = [];
+    if (itemIds.length > 0) {
+      itemStageRows = await db
+        .select({
+          id: schema.contentItems.id,
+          stage: schema.contentItems.stage,
+          kcId: schema.contentItemKcs.kcId,
+        })
+        .from(schema.contentItems)
+        .leftJoin(
+          schema.contentItemKcs,
+          eq(schema.contentItemKcs.contentItemId, schema.contentItems.id)
+        )
+        .where(sql`${schema.contentItems.id} = ANY(${itemIds}::uuid[])`);
+    }
+    // Build a map: itemId → { stage, kcId }
+    const itemMetaMap = new Map<string, { stage: string; kcId: string | null }>();
+    for (const row of itemStageRows) {
+      if (!itemMetaMap.has(row.id)) {
+        itemMetaMap.set(row.id, { stage: row.stage, kcId: row.kcId });
+      }
+    }
+
+    // Upsert fsrs_memory_state for each item in the session
+    let fsrsRowsUpdated = 0;
+    for (const [itemId, itemInfo] of itemMap.entries()) {
+      const meta = itemMetaMap.get(itemId);
+      const stageType = meta?.stage ?? itemInfo.stage;
+      const kcId = itemInfo.kcId ?? meta?.kcId ?? null;
+
+      // Skip items without a KC (they cannot be tracked in fsrs_memory_state
+      // because the schema requires kcId)
+      if (!kcId) continue;
+
+      const existing = existingStateMap.get(itemId);
+      const rating = scoreToFsrsRating(itemInfo.score);
+
+      // Build the FsrsCard from existing state, or a new card if first review
+      const card: FsrsCard = existing
+        ? {
+            stability: existing.stability,
+            difficulty: existing.difficulty,
+            retrievability: existing.retrievability,
+            state: existing.state as FsrsCardState,
+            lastReview: existing.lastReview,
+            reviewCount: existing.reviewCount,
+            lapseCount: existing.lapseCount,
+          }
+        : createNewCard();
+
+      const result = scheduleReview(card, rating, now, fsrsWeights, targetRetention);
+
+      const newReviewCount = (existing?.reviewCount ?? 0) + 1;
+      const newLapseCount = (existing?.lapseCount ?? 0) + (rating === 1 ? 1 : 0);
+
+      await db
+        .insert(schema.fsrsMemoryState)
+        .values({
+          userId: user.id,
+          itemId,
+          kcId,
+          stability: result.stability,
+          difficulty: result.difficulty,
+          retrievability: result.retrievability,
+          stageType,
+          lastReview: now,
+          nextReview: result.nextDue,
+          reviewCount: newReviewCount,
+          lapseCount: newLapseCount,
+          state: result.state,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [schema.fsrsMemoryState.userId, schema.fsrsMemoryState.itemId],
+          set: {
+            stability: result.stability,
+            difficulty: result.difficulty,
+            retrievability: result.retrievability,
+            stageType,
+            lastReview: now,
+            nextReview: result.nextDue,
+            reviewCount: sql`${schema.fsrsMemoryState.reviewCount} + 1`,
+            lapseCount: sql`${schema.fsrsMemoryState.lapseCount} + ${rating === 1 ? 1 : 0}`,
+            state: result.state,
+            updatedAt: now,
+          },
+        });
+
+      fsrsRowsUpdated += 1;
+    }
+
+    // ── 8. Mark the session as completed ────────────────────────────────────
     const completedAt = new Date();
     const durationS = Math.round(
       (completedAt.getTime() - session.startedAt.getTime()) / 1000
@@ -1035,13 +1227,14 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
       })
       .where(eq(schema.sessions.id, sessionId));
 
-    // ── 8. Return summary ────────────────────────────────────────────────────
+    // ── 9. Return summary ────────────────────────────────────────────────────
     return c.json({
       summary: {
         totalItems,
         correct,
         accuracy,
         kcsUpdated,
+        fsrsRowsUpdated,
       },
     });
   } catch (error) {

@@ -1,13 +1,12 @@
-import Link from 'next/link';
+/**
+ * Root page — redirects to /dashboard.
+ *
+ * AuthGuard in the root layout handles the /login redirect if no token is
+ * present, so we just need to send authenticated users to the dashboard.
+ */
 
-export default function HomePage() {
-  return (
-    <main>
-      <h1>Hemisphere</h1>
-      <p>Next.js shell scaffolded for the learning app.</p>
-      <p>
-        <Link href="/dashboard">Open dashboard shell</Link>
-      </p>
-    </main>
-  );
+import { redirect } from 'next/navigation';
+
+export default function RootPage() {
+  redirect('/dashboard');
 }
