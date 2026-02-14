@@ -129,6 +129,148 @@ function stateToProgress(state: SessionState): SessionProgress {
   };
 }
 
+// ─── GET /active ──────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/session/active
+ *
+ * Returns the resumable state for any in_progress session belonging to the
+ * authenticated user.  This is the recovery endpoint — the frontend calls it
+ * on mount (or after a page refresh / network interruption) to determine
+ * whether there is an unfinished session to resume rather than starting a new
+ * one from scratch.
+ *
+ * Response (200) when an active session exists:
+ *   {
+ *     active:            true,
+ *     sessionId:         string (UUID),
+ *     topicId:           string (UUID),
+ *     stage:             "encounter" | "analysis" | "return",
+ *     currentItemIndex:  number,
+ *     startedAt:         number (Unix ms),
+ *     items: Array<{
+ *       id:                  string,
+ *       itemType:            string,
+ *       stage:               string,
+ *       hemisphereMode:      string,
+ *       difficultyLevel:     number,
+ *       bloomLevel:          string,
+ *       estimatedDurationS:  number,
+ *       body:                unknown,
+ *     }>
+ *   }
+ *
+ * Response (404) when no active session:
+ *   { active: false }
+ *
+ * Errors:
+ *   500 – unexpected server error
+ */
+sessionRoutes.get('/active', authMiddleware, async (c) => {
+  const user = c.get('user');
+
+  try {
+    // ── 1. Find the most-recently-started in_progress session for this user ──
+    const [session] = await db
+      .select()
+      .from(schema.sessions)
+      .where(
+        and(
+          eq(schema.sessions.userId, user.id),
+          eq(schema.sessions.status, 'in_progress')
+        )
+      )
+      .orderBy(sql`${schema.sessions.startedAt} DESC`)
+      .limit(1);
+
+    if (!session) {
+      return c.json({ active: false }, 404);
+    }
+
+    // ── 2. Extract session progress from adaptiveDecisions ───────────────────
+    const rawDecisions = session.adaptiveDecisions as unknown;
+    if (!rawDecisions || typeof rawDecisions !== 'object') {
+      return c.json(
+        {
+          error: 'Internal Server Error',
+          message: 'Active session has no progress state',
+        },
+        500
+      );
+    }
+
+    const progress = rawDecisions as SessionProgress;
+
+    if (
+      !Array.isArray(progress.itemQueue) ||
+      typeof progress.currentItemIndex !== 'number' ||
+      !progress.currentStage
+    ) {
+      return c.json(
+        { error: 'Internal Server Error', message: 'Session progress state is malformed' },
+        500
+      );
+    }
+
+    // ── 3. Fetch full item details for every item in the queue ───────────────
+    //
+    // We fetch all items in the queue (not just remaining ones) so the frontend
+    // has the complete picture for progress indicators and any look-ahead
+    // rendering.  Items are returned in queue order.
+    const itemIds = progress.itemQueue;
+
+    let items: Array<{
+      id: string;
+      itemType: string;
+      stage: string;
+      hemisphereMode: string;
+      difficultyLevel: number;
+      bloomLevel: string;
+      estimatedDurationS: number;
+      body: unknown;
+    }> = [];
+
+    if (itemIds.length > 0) {
+      const rows = await db
+        .select({
+          id: schema.contentItems.id,
+          itemType: schema.contentItems.itemType,
+          stage: schema.contentItems.stage,
+          hemisphereMode: schema.contentItems.hemisphereMode,
+          difficultyLevel: schema.contentItems.difficultyLevel,
+          bloomLevel: schema.contentItems.bloomLevel,
+          estimatedDurationS: schema.contentItems.estimatedDurationS,
+          body: schema.contentItems.body,
+        })
+        .from(schema.contentItems)
+        .where(sql`${schema.contentItems.id} = ANY(${itemIds}::uuid[])`);
+
+      // Re-order to match the original queue order (SQL IN/ANY doesn't preserve order)
+      const rowById = new Map(rows.map((row) => [row.id, row]));
+      items = itemIds
+        .map((id) => rowById.get(id))
+        .filter((row): row is NonNullable<typeof row> => row !== undefined);
+    }
+
+    // ── 4. Return the resumable session payload ──────────────────────────────
+    return c.json({
+      active: true,
+      sessionId: session.id,
+      topicId: session.topicId,
+      stage: progress.currentStage,
+      currentItemIndex: progress.currentItemIndex,
+      startedAt: progress.startedAt,
+      items,
+    });
+  } catch (err) {
+    console.error('GET /api/session/active error:', err);
+    return c.json(
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
+      500
+    );
+  }
+});
+
 // ─── POST /start ──────────────────────────────────────────────────────────────
 
 /**
