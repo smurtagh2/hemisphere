@@ -21,12 +21,13 @@ import { devtools } from 'zustand/middleware';
 import { createSessionSlice, type SessionSlice } from './session-slice';
 import { createQueueSlice, type QueueSlice } from './queue-slice';
 import { createResponseSlice, type ResponseSlice } from './response-slice';
+import { createOutboxSlice, type OutboxSlice } from './outbox-slice';
 
 // ============================================================================
 // Combined Store Type
 // ============================================================================
 
-export type SessionStore = SessionSlice & QueueSlice & ResponseSlice;
+export type SessionStore = SessionSlice & QueueSlice & ResponseSlice & OutboxSlice;
 
 // ============================================================================
 // Store Instance
@@ -38,6 +39,7 @@ export const useSessionStore = create<SessionStore>()(
       ...createSessionSlice<SessionStore>(set, get),
       ...createQueueSlice<SessionStore>(set, get),
       ...createResponseSlice<SessionStore>(set, get),
+      ...createOutboxSlice<SessionStore>(set, get),
     }),
     {
       name: 'HemisphereSession',
@@ -103,6 +105,26 @@ export const useQueueExhausted = () => useSessionStore((s) => s.stageQueueExhaus
  */
 export const useResponseAccuracy = () => useSessionStore((s) => s.getAccuracy());
 
+/**
+ * Subscribe to the outbox queue (pending / sending / retrying entries).
+ */
+export const useOutboxQueue = () => useSessionStore((s) => s.outboxQueue);
+
+/**
+ * Subscribe to the dead-letter queue (responses that failed all retries).
+ */
+export const useDeadLetterQueue = () => useSessionStore((s) => s.deadLetterQueue);
+
+/**
+ * Subscribe to the count of responses not yet confirmed by the server.
+ */
+export const usePendingResponseCount = () => useSessionStore((s) => s.getPendingCount());
+
+/**
+ * Subscribe to whether there are any dead-letter entries that need attention.
+ */
+export const useHasDeadLetters = () => useSessionStore((s) => s.hasDeadLetters());
+
 // ============================================================================
 // Action Selectors – stable references for dispatching
 // ============================================================================
@@ -139,6 +161,15 @@ export const useSessionActions = () =>
     revealAnswer: s.revealAnswer,
     cancelInteraction: s.cancelInteraction,
     clearResponses: s.clearResponses,
+    // Outbox actions
+    configureOutbox: s.configureOutbox,
+    enqueueResponse: s.enqueueResponse,
+    flushOutbox: s.flushOutbox,
+    reviveDeadLetter: s.reviveDeadLetter,
+    dismissDeadLetter: s.dismissDeadLetter,
+    pruneConfirmed: s.pruneConfirmed,
+    clearOutbox: s.clearOutbox,
+    rehydrateOutbox: s.rehydrateOutbox,
   }));
 
 // ============================================================================
@@ -156,6 +187,15 @@ export type {
   ResponseQuality,
   ResponseModality,
 } from './response-slice';
+export type {
+  OutboxSlice,
+  OutboxSliceState,
+  OutboxSliceActions,
+  OutboxEntry,
+  OutboxEntryStatus,
+  DeadLetterEntry,
+  ResponseSubmitFn,
+} from './outbox-slice';
 
 // Re-export shared types that consumers often need alongside the store
 export type {
