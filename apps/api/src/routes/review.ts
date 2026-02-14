@@ -292,6 +292,158 @@ reviewRoutes.post('/schedule', authMiddleware, async (c) => {
   }
 });
 
+// ─── GET /queue ───────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/review/queue
+ *
+ * Returns a prioritised, stable-contract review queue for the authenticated
+ * user.  Unlike /due (which surfaces raw FSRS memory states), this endpoint
+ * returns a computed, client-ready payload that the frontend can rely on
+ * without knowing anything about the underlying FSRS fields.
+ *
+ * Query params:
+ *   ?limit=N  – maximum items to return (default 20, max 50)
+ *
+ * Response (200):
+ *   {
+ *     queue: Array<{
+ *       itemId:         string,   // UUID
+ *       kcId:           string,   // knowledge concept ID
+ *       dueDate:        string,   // ISO 8601
+ *       retrievability: number,   // [0, 1]
+ *       overdueDays:    number,   // 0 for new cards
+ *       isNew:          boolean,  // true if card has never been reviewed
+ *       priority:       number,   // computed priority score (higher = sooner)
+ *     }>,
+ *     meta: {
+ *       total:       number,
+ *       newCount:    number,
+ *       dueCount:    number,
+ *       generatedAt: string,      // ISO 8601
+ *     }
+ *   }
+ *
+ * Priority formula:
+ *   priority = overdueDays * 10 + (1 - retrievability) * 5 + (isNew ? 1 : 0)
+ *
+ * The queue is sorted by priority descending (highest priority first) and
+ * limited to `limit` items (default 20, max 50).
+ *
+ * Errors:
+ *   401 – not authenticated
+ *   500 – unexpected server error
+ */
+reviewRoutes.get('/queue', authMiddleware, async (c) => {
+  const user = c.get('user');
+  const now = new Date();
+
+  // Parse and clamp the ?limit query parameter
+  const DEFAULT_LIMIT = 20;
+  const MAX_LIMIT = 50;
+  const rawLimit = c.req.query('limit');
+  let limit = DEFAULT_LIMIT;
+  if (rawLimit !== undefined) {
+    const parsed = parseInt(rawLimit, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      limit = Math.min(parsed, MAX_LIMIT);
+    }
+  }
+
+  try {
+    // Fetch all memory states that are due now or are new (no nextReview set).
+    const rows = await db
+      .select({
+        itemId: schema.fsrsMemoryState.itemId,
+        kcId: schema.fsrsMemoryState.kcId,
+        stability: schema.fsrsMemoryState.stability,
+        difficulty: schema.fsrsMemoryState.difficulty,
+        retrievability: schema.fsrsMemoryState.retrievability,
+        state: schema.fsrsMemoryState.state,
+        lastReview: schema.fsrsMemoryState.lastReview,
+        nextReview: schema.fsrsMemoryState.nextReview,
+        reviewCount: schema.fsrsMemoryState.reviewCount,
+        lapseCount: schema.fsrsMemoryState.lapseCount,
+      })
+      .from(schema.fsrsMemoryState)
+      .where(
+        and(
+          eq(schema.fsrsMemoryState.userId, user.id),
+          sql`(${schema.fsrsMemoryState.nextReview} IS NULL OR ${schema.fsrsMemoryState.nextReview} <= ${now})`
+        )
+      );
+
+    // Build the candidate list: compute derived fields and filter to only
+    // cards that are actually due.
+    const candidates = rows
+      .map((row) => {
+        const card: FsrsCard = {
+          stability: row.stability,
+          difficulty: row.difficulty,
+          retrievability: row.retrievability,
+          state: row.state as FsrsCard['state'],
+          lastReview: row.lastReview ?? null,
+          reviewCount: row.reviewCount,
+          lapseCount: row.lapseCount,
+        };
+
+        const dueDate = row.nextReview ?? now;
+        const due = isCardDue(card, dueDate, now);
+
+        if (!due) return null;
+
+        const isNew = card.state === 'new';
+        const liveRetrievability = getCurrentRetrievability(card, now);
+
+        const overdueDays =
+          isNew || row.nextReview === null
+            ? 0
+            : Math.max(0, (now.getTime() - row.nextReview.getTime()) / (1000 * 60 * 60 * 24));
+
+        // priority = overdueDays * 10 + (1 - retrievability) * 5 + (isNew ? 1 : 0)
+        const priority =
+          overdueDays * 10 + (1 - liveRetrievability) * 5 + (isNew ? 1 : 0);
+
+        return {
+          itemId: row.itemId,
+          kcId: row.kcId,
+          dueDate: dueDate.toISOString(),
+          retrievability: liveRetrievability,
+          overdueDays,
+          isNew,
+          priority,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      // Sort by priority descending (highest priority first)
+      .sort((a, b) => b.priority - a.priority);
+
+    // Compute meta counts from the full candidate list (before limiting)
+    const total = candidates.length;
+    const newCount = candidates.filter((item) => item.isNew).length;
+    const dueCount = total - newCount;
+
+    // Apply the limit
+    const queue = candidates.slice(0, limit);
+
+    return c.json({
+      queue,
+      meta: {
+        total,
+        newCount,
+        dueCount,
+        generatedAt: now.toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error('GET /api/review/queue error:', err);
+    return c.json(
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
+      500
+    );
+  }
+});
+
 // ─── GET /stats ───────────────────────────────────────────────────────────────
 
 /**

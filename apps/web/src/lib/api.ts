@@ -252,3 +252,63 @@ export interface Topic {
 export async function listTopics(): Promise<Topic[]> {
   return request<Topic[]>('/api/topics');
 }
+
+// ---------------------------------------------------------------------------
+// Review queue types & calls
+// ---------------------------------------------------------------------------
+
+export interface ReviewQueueItem {
+  itemId: string;
+  kcId: string;
+  dueDate: string;
+  retrievability: number;
+  overdueDays: number;
+  isNew: boolean;
+  priority: number;
+}
+
+export interface ReviewQueueMeta {
+  total: number;
+  newCount: number;
+  dueCount: number;
+  generatedAt: string;
+}
+
+export interface ReviewQueueResponse {
+  queue: ReviewQueueItem[];
+  meta: ReviewQueueMeta;
+}
+
+export async function getReviewQueue(limit?: number): Promise<ReviewQueueResponse> {
+  const path = limit !== undefined
+    ? `/api/review/queue?limit=${encodeURIComponent(limit)}`
+    : '/api/review/queue';
+  return request<ReviewQueueResponse>(path);
+}
+
+// ---------------------------------------------------------------------------
+// Scoring types & calls
+// ---------------------------------------------------------------------------
+
+export interface TransferScorePayload {
+  sessionId: string;
+  userResponse: string;
+  concept: string;
+  scenario: string;
+}
+
+export interface TransferScoreResult {
+  score: number;
+  feedback: string;
+  rationale: string;
+  scoringMethod: 'claude' | 'fallback';
+}
+
+export async function scoreTransferChallenge(
+  payload: TransferScorePayload,
+): Promise<TransferScoreResult> {
+  return request<TransferScoreResult>('/api/scoring/transfer', {
+    method: 'POST',
+    body: payload,
+  });
+}

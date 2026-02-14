@@ -15,6 +15,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
     "@hemisphere/db": "workspace:*",
     "@hemisphere/shared": "workspace:*",
     "@hono/node-server": "^1.13.7",

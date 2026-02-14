@@ -31,6 +31,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../ui/Button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../ui/Card';
 import { TextArea } from '../../ui/TextArea';
+import { scoreTransferChallenge, type TransferScoreResult } from '../../../lib/api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -154,6 +155,12 @@ export interface TransferChallengeScreenProps {
 // ---------------------------------------------------------------------------
 
 type Phase = 'challenge' | 'revealed' | 'complete';
+
+type ScoringState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'done'; result: TransferScoreResult }
+  | { status: 'fallback' }; // timed-out or errored — show self-assessment prompt
 
 // ---------------------------------------------------------------------------
 // Icon helpers
@@ -299,6 +306,7 @@ export function TransferChallengeScreen({
   const [hintRevealed, setHintRevealed] = useState(false);
   const [selectedRating, setSelectedRating] = useState<TransferSelfRating | null>(null);
   const [visible, setVisible] = useState(false);
+  const [scoring, setScoring] = useState<ScoringState>({ status: 'idle' });
 
   const mountedAtRef = useRef<number>(Date.now());
   const elapsed = useCallback(() => Date.now() - mountedAtRef.current, []);
@@ -352,7 +360,29 @@ export function TransferChallengeScreen({
     });
 
     setPhase('revealed');
-  }, [response, hintRevealed, interactionId, emit, elapsed]);
+
+    // Fire async Claude scoring — 5-second timeout, then fallback
+    setScoring({ status: 'loading' });
+
+    const scorePromise = scoreTransferChallenge({
+      sessionId: interactionId,
+      userResponse: response,
+      concept,
+      scenario,
+    });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Scoring timeout')), 5000)
+    );
+
+    Promise.race([scorePromise, timeoutPromise])
+      .then((result) => {
+        setScoring({ status: 'done', result });
+      })
+      .catch(() => {
+        setScoring({ status: 'fallback' });
+      });
+  }, [response, hintRevealed, interactionId, concept, scenario, emit, elapsed]);
 
   const handleSelectRating = useCallback((rating: TransferSelfRating) => {
     setSelectedRating(rating);
@@ -405,6 +435,7 @@ export function TransferChallengeScreen({
         transition: 'opacity var(--duration-return-long) var(--ease-return)',
       }}
     >
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <Card
         padding="lg"
         glow
@@ -616,7 +647,7 @@ export function TransferChallengeScreen({
             </div>
           )}
 
-          {/* Revealed phase — comparison + self-rating */}
+          {/* Revealed phase — comparison + scoring + self-rating */}
           {phase === 'revealed' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
               {/* Learner's answer */}
@@ -694,6 +725,112 @@ export function TransferChallengeScreen({
                 </div>
               </section>
 
+              {/* AI Scoring feedback */}
+              {scoring.status === 'loading' && (
+                <section aria-label="Scoring in progress" aria-live="polite">
+                  <div
+                    style={{
+                      padding: 'var(--space-4)',
+                      borderRadius: 'var(--radius-lg)',
+                      backgroundColor: 'rgba(212, 114, 74, 0.06)',
+                      border: '1px solid rgba(212, 114, 74, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-3)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '50%',
+                        border: '2px solid rgba(212, 114, 74, 0.4)',
+                        borderTopColor: 'var(--return-accent-primary)',
+                        animation: 'spin 0.9s linear infinite',
+                        flexShrink: 0,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <p
+                      style={{
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--return-text-secondary)',
+                        fontStyle: 'italic',
+                        fontFamily: 'var(--font-encounter)',
+                      }}
+                    >
+                      Evaluating your response...
+                    </p>
+                  </div>
+                </section>
+              )}
+
+              {scoring.status === 'done' && (
+                <section aria-label="AI scoring feedback" aria-live="polite">
+                  <div
+                    style={{
+                      padding: 'var(--space-4)',
+                      borderRadius: 'var(--radius-lg)',
+                      backgroundColor: 'rgba(212, 114, 74, 0.08)',
+                      border: '1px solid rgba(212, 114, 74, 0.2)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: 'var(--space-3)',
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          fontWeight: 'var(--font-semibold)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          color: 'var(--return-accent-primary)',
+                        }}
+                      >
+                        Feedback
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          color: 'rgba(168, 92, 138, 0.5)',
+                          fontStyle: 'italic',
+                          fontFamily: 'var(--font-encounter)',
+                        }}
+                      >
+                        {scoring.result.scoringMethod === 'claude' ? 'AI scored' : 'Self-assessed'}
+                      </p>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--return-text-primary)',
+                        lineHeight: 'var(--leading-encounter)',
+                        fontFamily: 'var(--font-encounter)',
+                        marginBottom: 'var(--space-2)',
+                      }}
+                    >
+                      {scoring.result.feedback}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 'var(--text-xs)',
+                        color: 'var(--return-text-secondary)',
+                        fontStyle: 'italic',
+                        fontFamily: 'var(--font-encounter)',
+                      }}
+                    >
+                      Score: {Math.round(scoring.result.score * 100)}%
+                    </p>
+                  </div>
+                </section>
+              )}
+
               {/* Self-rating */}
               <section aria-label="Self-assessment">
                 <p
@@ -706,8 +843,24 @@ export function TransferChallengeScreen({
                     marginBottom: 'var(--space-4)',
                   }}
                 >
-                  How well did you transfer the concept?
+                  {scoring.status === 'fallback'
+                    ? 'How well did you apply the concept? Rate 1–4'
+                    : 'How well did you transfer the concept?'}
                 </p>
+
+                {scoring.status === 'fallback' && (
+                  <p
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      color: 'rgba(168, 92, 138, 0.5)',
+                      fontStyle: 'italic',
+                      fontFamily: 'var(--font-encounter)',
+                      marginBottom: 'var(--space-3)',
+                    }}
+                  >
+                    Self-assessed
+                  </p>
+                )}
 
                 <div
                   role="radiogroup"
@@ -812,7 +965,7 @@ export function TransferChallengeScreen({
               variant="primary"
               size="md"
               fullWidth
-              disabled={selectedRating === null}
+              disabled={selectedRating === null || scoring.status === 'loading'}
               onClick={handleSubmitRating}
               aria-label="Submit transfer self-rating"
               style={{
@@ -823,7 +976,7 @@ export function TransferChallengeScreen({
                   'background-color var(--duration-return-short) var(--ease-return)',
               }}
             >
-              Submit rating
+              {scoring.status === 'loading' ? 'Evaluating your response...' : 'Submit rating'}
             </Button>
           )}
 
