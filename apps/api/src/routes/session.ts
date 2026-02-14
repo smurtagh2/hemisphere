@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '@hemisphere/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import {
   sessionStateReducer,
   type SessionState,
@@ -200,6 +200,101 @@ function buildItemQueueForSessionType(
   ]);
 
   return quickQueue;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function ewma(previous: number, next: number, alpha: number = 0.3): number {
+  return previous * (1 - alpha) + next * alpha;
+}
+
+function pearsonCorrelation(xs: number[], ys: number[]): number {
+  if (xs.length < 2 || ys.length < 2 || xs.length !== ys.length) return 0;
+
+  const xMean = average(xs);
+  const yMean = average(ys);
+
+  let numerator = 0;
+  let xVariance = 0;
+  let yVariance = 0;
+
+  for (let i = 0; i < xs.length; i += 1) {
+    const xDiff = xs[i] - xMean;
+    const yDiff = ys[i] - yMean;
+    numerator += xDiff * yDiff;
+    xVariance += xDiff * xDiff;
+    yVariance += yDiff * yDiff;
+  }
+
+  const denominator = Math.sqrt(xVariance * yVariance);
+  if (denominator === 0) return 0;
+  return numerator / denominator;
+}
+
+function getPreferredSessionTime(timestamp: Date): 'morning' | 'afternoon' | 'evening' | 'night' {
+  const hour = timestamp.getHours();
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
+}
+
+function asNumberRecord(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const result: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      result[key] = raw;
+    }
+  }
+  return result;
+}
+
+function asHistoryEntries(value: unknown): Array<{ date: string; value: number }> {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const maybeDate = (entry as { date?: unknown }).date;
+      const maybeValue = (entry as { value?: unknown }).value;
+      if (typeof maybeDate !== 'string' || typeof maybeValue !== 'number') {
+        return null;
+      }
+      return { date: maybeDate, value: maybeValue };
+    })
+    .filter((entry): entry is { date: string; value: number } => entry !== null);
+}
+
+function asWeeklyEngagementHistory(value: unknown): Array<{ week: string; score: number }> {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const maybeWeek = (entry as { week?: unknown }).week;
+      const maybeScore = (entry as { score?: unknown }).score;
+      if (typeof maybeWeek !== 'string' || typeof maybeScore !== 'number') {
+        return null;
+      }
+      return { week: maybeWeek, score: maybeScore };
+    })
+    .filter((entry): entry is { week: string; score: number } => entry !== null);
+}
+
+function getWeekStartIso(date: Date): string {
+  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utc.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  utc.setUTCDate(utc.getUTCDate() + diff);
+  return utc.toISOString().slice(0, 10);
 }
 
 // ─── GET /active ──────────────────────────────────────────────────────────────
@@ -1238,6 +1333,12 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
         isCorrect: schema.assessmentEvents.isCorrect,
         score: schema.assessmentEvents.score,
         stage: schema.assessmentEvents.stage,
+        responseType: schema.assessmentEvents.responseType,
+        latencyMs: schema.assessmentEvents.latencyMs,
+        helpRequested: schema.assessmentEvents.helpRequested,
+        helpType: schema.assessmentEvents.helpType,
+        confidenceRating: schema.assessmentEvents.confidenceRating,
+        difficultyLevel: schema.assessmentEvents.difficultyLevel,
       })
       .from(schema.assessmentEvents)
       .where(eq(schema.assessmentEvents.sessionId, sessionId));
@@ -1276,57 +1377,113 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
 
     const kcsUpdated = kcMap.size;
     const now = new Date();
+    const kcIds = [...kcMap.keys()];
+
+    const existingKcStates = kcIds.length
+      ? await db
+          .select({
+            kcId: schema.learnerKcState.kcId,
+            masteryLevel: schema.learnerKcState.masteryLevel,
+            difficultyTier: schema.learnerKcState.difficultyTier,
+            lhAccuracy: schema.learnerKcState.lhAccuracy,
+            lhAttempts: schema.learnerKcState.lhAttempts,
+            rhScore: schema.learnerKcState.rhScore,
+            rhAttempts: schema.learnerKcState.rhAttempts,
+            firstEncountered: schema.learnerKcState.firstEncountered,
+          })
+          .from(schema.learnerKcState)
+          .where(
+            and(
+              eq(schema.learnerKcState.userId, user.id),
+              sql`${schema.learnerKcState.kcId} = ANY(${kcIds}::uuid[])`
+            )
+          )
+      : [];
+    const existingKcStateMap = new Map(existingKcStates.map((row) => [row.kcId, row]));
+    const masteryDeltasByKc = new Map<string, number>();
+    const deltaByDifficultyKey = new Map<string, number[]>();
 
     // ── 6. Upsert learner_kc_state for each affected KC ──────────────────────
     for (const [kcId, agg] of kcMap.entries()) {
       const sessionAccuracy = agg.attempts > 0 ? agg.correct / agg.attempts : 0;
-      const sessionAvgScore = agg.scoredCount > 0 ? agg.scoreSum / agg.scoredCount : 0;
+      const sessionAvgScore =
+        agg.scoredCount > 0 ? agg.scoreSum / agg.scoredCount : sessionAccuracy;
+      const sessionPerformance = clamp((sessionAccuracy + sessionAvgScore) / 2, 0, 1);
+      const existingState = existingKcStateMap.get(kcId);
+      const previousMastery = existingState?.masteryLevel ?? 0;
+
+      const previousLhAttempts = existingState?.lhAttempts ?? 0;
+      const nextLhAttempts = previousLhAttempts + agg.attempts;
+      const nextLhAccuracy =
+        nextLhAttempts > 0
+          ? ((existingState?.lhAccuracy ?? 0) * previousLhAttempts + agg.correct) / nextLhAttempts
+          : 0;
+
+      const previousRhAttempts = existingState?.rhAttempts ?? 0;
+      const nextRhAttempts = previousRhAttempts + agg.attempts;
+      const nextRhScore =
+        nextRhAttempts > 0
+          ? ((existingState?.rhScore ?? 0) * previousRhAttempts + agg.scoreSum) / nextRhAttempts
+          : 0;
+
+      const nextIntegratedScore = clamp((nextLhAccuracy + nextRhScore) / 2, 0, 1);
+      const nextMastery = clamp(
+        existingState ? previousMastery * 0.8 + sessionPerformance * 0.2 : sessionPerformance,
+        0,
+        1
+      );
+
+      let nextDifficultyTier = existingState?.difficultyTier ?? 1;
+      if (sessionPerformance >= 0.85 && nextLhAttempts >= 8) {
+        nextDifficultyTier = Math.min(4, nextDifficultyTier + 1);
+      } else if (sessionPerformance < 0.4 && agg.attempts >= 3) {
+        nextDifficultyTier = Math.max(1, nextDifficultyTier - 1);
+      }
 
       await db
         .insert(schema.learnerKcState)
         .values({
           userId: user.id,
           kcId,
-          lhAccuracy: sessionAccuracy,
-          lhAttempts: agg.attempts,
+          lhAccuracy: nextLhAccuracy,
+          lhAttempts: nextLhAttempts,
           lhLastAccuracy: sessionAccuracy,
-          rhScore: sessionAvgScore,
-          rhAttempts: agg.attempts,
+          rhScore: nextRhScore,
+          rhAttempts: nextRhAttempts,
           rhLastScore: sessionAvgScore,
-          masteryLevel: 0,
-          integratedScore: sessionAvgScore,
-          firstEncountered: now,
+          masteryLevel: nextMastery,
+          integratedScore: nextIntegratedScore,
+          difficultyTier: nextDifficultyTier,
+          firstEncountered: existingState?.firstEncountered ?? now,
           lastPracticed: now,
           lastAssessedLh: now,
+          lastAssessedRh: now,
           updatedAt: now,
         })
         .onConflictDoUpdate({
           target: [schema.learnerKcState.userId, schema.learnerKcState.kcId],
           set: {
-            lhAccuracy: sql`
-              (${schema.learnerKcState.lhAccuracy} * ${schema.learnerKcState.lhAttempts}
-               + ${agg.correct}::real)
-              / NULLIF(${schema.learnerKcState.lhAttempts} + ${agg.attempts}::int, 0)
-            `,
-            lhAttempts: sql`${schema.learnerKcState.lhAttempts} + ${agg.attempts}::int`,
+            lhAccuracy: nextLhAccuracy,
+            lhAttempts: nextLhAttempts,
             lhLastAccuracy: sessionAccuracy,
-            rhScore: sql`
-              (${schema.learnerKcState.rhScore} * ${schema.learnerKcState.rhAttempts}
-               + ${agg.scoreSum}::real)
-              / NULLIF(${schema.learnerKcState.rhAttempts} + ${agg.attempts}::int, 0)
-            `,
-            rhAttempts: sql`${schema.learnerKcState.rhAttempts} + ${agg.attempts}::int`,
+            rhScore: nextRhScore,
+            rhAttempts: nextRhAttempts,
             rhLastScore: sessionAvgScore,
-            integratedScore: sql`
-              (${schema.learnerKcState.rhScore} * ${schema.learnerKcState.rhAttempts}
-               + ${agg.scoreSum}::real)
-              / NULLIF(${schema.learnerKcState.rhAttempts} + ${agg.attempts}::int, 0)
-            `,
+            masteryLevel: nextMastery,
+            integratedScore: nextIntegratedScore,
+            difficultyTier: nextDifficultyTier,
             lastPracticed: now,
             lastAssessedLh: now,
+            lastAssessedRh: now,
             updatedAt: now,
           },
         });
+
+      masteryDeltasByKc.set(kcId, nextMastery - previousMastery);
+      const difficultyKey = `tier_${nextDifficultyTier}`;
+      const currentDeltas = deltaByDifficultyKey.get(difficultyKey) ?? [];
+      currentDeltas.push(nextMastery - previousMastery);
+      deltaByDifficultyKey.set(difficultyKey, currentDeltas);
     }
 
     // ── 7. FSRS scheduling: schedule a review for every (item, KC) touched ──
@@ -1589,7 +1746,622 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
       })
       .where(eq(schema.sessions.id, sessionId));
 
-    // ── 9. Return summary ────────────────────────────────────────────────────
+    // ── 9. Update topic proficiency + four-layer learner model ──────────────
+    const toEventScore = (event: {
+      score: number | null;
+      isCorrect: boolean | null;
+    }): number | null => {
+      if (event.score !== null && event.score !== undefined) return event.score;
+      if (event.isCorrect === true) return 1;
+      if (event.isCorrect === false) return 0;
+      return null;
+    };
+
+    const stageScoreAverage = (stage: 'encounter' | 'analysis' | 'return'): number => {
+      const scores = events
+        .filter((event) => event.stage === stage)
+        .map((event) => toEventScore(event))
+        .filter((value): value is number => value !== null);
+      return average(scores);
+    };
+
+    const encounterEngagementScore = stageScoreAverage('encounter');
+    const analysisAccuracyScore = stageScoreAverage('analysis');
+    const returnEngagementScore = stageScoreAverage('return');
+
+    const topicKcRows = await db
+      .select({ kcId: schema.knowledgeComponents.id })
+      .from(schema.knowledgeComponents)
+      .where(eq(schema.knowledgeComponents.topicId, session.topicId));
+    const topicKcIds = topicKcRows.map((row) => row.kcId);
+
+    const topicKcStateRows = topicKcIds.length
+      ? await db
+          .select({
+            kcId: schema.learnerKcState.kcId,
+            masteryLevel: schema.learnerKcState.masteryLevel,
+          })
+          .from(schema.learnerKcState)
+          .where(
+            and(
+              eq(schema.learnerKcState.userId, user.id),
+              sql`${schema.learnerKcState.kcId} = ANY(${topicKcIds}::uuid[])`
+            )
+          )
+      : [];
+    const topicKcStateMap = new Map(topicKcStateRows.map((row) => [row.kcId, row]));
+    const topicMasteries = topicKcIds.map((kcId) => topicKcStateMap.get(kcId)?.masteryLevel ?? 0);
+    const overallProficiency = average(topicMasteries);
+    const kcMastered = topicMasteries.filter((mastery) => mastery >= 0.8).length;
+    const kcInProgress = topicMasteries.filter((mastery) => mastery > 0 && mastery < 0.8).length;
+    const kcNotStarted = topicMasteries.length - kcMastered - kcInProgress;
+
+    const [existingTopicProficiency] = await db
+      .select({ sessionsCompleted: schema.learnerTopicProficiency.sessionsCompleted })
+      .from(schema.learnerTopicProficiency)
+      .where(
+        and(
+          eq(schema.learnerTopicProficiency.userId, user.id),
+          eq(schema.learnerTopicProficiency.topicId, session.topicId)
+        )
+      )
+      .limit(1);
+
+    await db
+      .insert(schema.learnerTopicProficiency)
+      .values({
+        userId: user.id,
+        topicId: session.topicId,
+        overallProficiency,
+        kcCount: topicMasteries.length,
+        kcMastered,
+        kcInProgress,
+        kcNotStarted,
+        encounterEngagement: encounterEngagementScore,
+        analysisAccuracy: analysisAccuracyScore,
+        returnQuality: returnEngagementScore,
+        lastSession: completedAt,
+        sessionsCompleted: (existingTopicProficiency?.sessionsCompleted ?? 0) + 1,
+        updatedAt: completedAt,
+      })
+      .onConflictDoUpdate({
+        target: [schema.learnerTopicProficiency.userId, schema.learnerTopicProficiency.topicId],
+        set: {
+          overallProficiency,
+          kcCount: topicMasteries.length,
+          kcMastered,
+          kcInProgress,
+          kcNotStarted,
+          encounterEngagement: encounterEngagementScore,
+          analysisAccuracy: analysisAccuracyScore,
+          returnQuality: returnEngagementScore,
+          lastSession: completedAt,
+          sessionsCompleted: (existingTopicProficiency?.sessionsCompleted ?? 0) + 1,
+          updatedAt: completedAt,
+        },
+      });
+
+    const [sessionCountsRow, behavioralRows, cognitiveRows, motivationalRows] = await Promise.all([
+      db
+        .select({
+          totalStarted: sql<number>`COUNT(*)::int`,
+          totalCompleted: sql<number>`COUNT(*) FILTER (WHERE ${schema.sessions.status} = 'completed')::int`,
+          completedLast7Days: sql<number>`COUNT(*) FILTER (WHERE ${schema.sessions.status} = 'completed' AND ${schema.sessions.completedAt} >= ${new Date(completedAt.getTime() - 7 * 24 * 60 * 60 * 1000)})::int`,
+          completedLast30Days: sql<number>`COUNT(*) FILTER (WHERE ${schema.sessions.status} = 'completed' AND ${schema.sessions.completedAt} >= ${new Date(completedAt.getTime() - 30 * 24 * 60 * 60 * 1000)})::int`,
+          abandonedCount: sql<number>`COUNT(*) FILTER (WHERE ${schema.sessions.status} = 'abandoned')::int`,
+        })
+        .from(schema.sessions)
+        .where(eq(schema.sessions.userId, user.id))
+        .then((rows) => rows[0]),
+      db
+        .select()
+        .from(schema.learnerBehavioralState)
+        .where(eq(schema.learnerBehavioralState.userId, user.id))
+        .limit(1),
+      db
+        .select()
+        .from(schema.learnerCognitiveProfile)
+        .where(eq(schema.learnerCognitiveProfile.userId, user.id))
+        .limit(1),
+      db
+        .select()
+        .from(schema.learnerMotivationalState)
+        .where(eq(schema.learnerMotivationalState.userId, user.id))
+        .limit(1),
+    ]);
+
+    const previousBehavioral = behavioralRows[0];
+    const previousCognitive = cognitiveRows[0];
+    const previousMotivational = motivationalRows[0];
+
+    const abandonmentRows = await db
+      .select({
+        stage: schema.sessions.abandonedAtStage,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(schema.sessions)
+      .where(
+        and(
+          eq(schema.sessions.userId, user.id),
+          eq(schema.sessions.status, 'abandoned'),
+          sql`${schema.sessions.abandonedAtStage} IS NOT NULL`
+        )
+      )
+      .groupBy(schema.sessions.abandonedAtStage);
+
+    const totalStarted = sessionCountsRow?.totalStarted ?? 0;
+    const totalCompleted = sessionCountsRow?.totalCompleted ?? 0;
+    const completedLast7Days = sessionCountsRow?.completedLast7Days ?? 0;
+    const completedLast30Days = sessionCountsRow?.completedLast30Days ?? 0;
+    const abandonedCount = sessionCountsRow?.abandonedCount ?? 0;
+    const sessionCompletionRate = totalStarted > 0 ? totalCompleted / totalStarted : 1;
+
+    const previousSessionCount = previousBehavioral?.totalSessions ?? 0;
+    const averageSessionDurationS =
+      previousSessionCount > 0
+        ? (previousBehavioral.averageSessionDurationS * previousSessionCount + durationS) /
+          (previousSessionCount + 1)
+        : durationS;
+    const sessionDurationTrend = previousBehavioral
+      ? durationS - previousBehavioral.averageSessionDurationS
+      : 0;
+
+    const sessionAverageLatencyMs = average(events.map((event) => event.latencyMs));
+    const averageLatencyMs =
+      totalItems > 0
+        ? previousSessionCount > 0
+          ? (previousBehavioral?.averageLatencyMs ?? 0) * (previousSessionCount / (previousSessionCount + 1)) +
+            sessionAverageLatencyMs / (previousSessionCount + 1)
+          : sessionAverageLatencyMs
+        : previousBehavioral?.averageLatencyMs ?? 0;
+    const latencyTrend =
+      totalItems > 0 && previousBehavioral
+        ? sessionAverageLatencyMs - previousBehavioral.averageLatencyMs
+        : 0;
+
+    const latencyByTypeSession = new Map<string, number[]>();
+    for (const event of events) {
+      const values = latencyByTypeSession.get(event.responseType) ?? [];
+      values.push(event.latencyMs);
+      latencyByTypeSession.set(event.responseType, values);
+    }
+    const previousLatencyByType = asNumberRecord(previousBehavioral?.latencyByType);
+    const latencyByType: Record<string, number> = {};
+    const latencyTypeKeys = new Set([
+      ...Object.keys(previousLatencyByType),
+      ...latencyByTypeSession.keys(),
+    ]);
+    for (const key of latencyTypeKeys) {
+      const sessionValue = average(latencyByTypeSession.get(key) ?? []);
+      const previousValue = previousLatencyByType[key] ?? sessionValue;
+      latencyByType[key] =
+        key in previousLatencyByType ? ewma(previousValue, sessionValue) : sessionValue;
+    }
+
+    const helpRequestCount = events.filter((event) => event.helpRequested).length;
+    const helpRequestRate = totalItems > 0 ? helpRequestCount / totalItems : 0;
+    const smoothedHelpRequestRate = previousBehavioral
+      ? ewma(previousBehavioral.helpRequestRate, helpRequestRate)
+      : helpRequestRate;
+    const helpRequestTrend = previousBehavioral
+      ? helpRequestRate - previousBehavioral.helpRequestRate
+      : 0;
+
+    const helpTypeSessionCounts: Record<string, number> = {};
+    for (const event of events) {
+      if (!event.helpRequested || !event.helpType) continue;
+      helpTypeSessionCounts[event.helpType] = (helpTypeSessionCounts[event.helpType] ?? 0) + 1;
+    }
+    const helpTypeSessionTotal = Object.values(helpTypeSessionCounts).reduce((sum, value) => sum + value, 0);
+    const helpTypeDistributionSession: Record<string, number> = {};
+    if (helpTypeSessionTotal > 0) {
+      for (const [key, value] of Object.entries(helpTypeSessionCounts)) {
+        helpTypeDistributionSession[key] = value / helpTypeSessionTotal;
+      }
+    }
+    const previousHelpDistribution = asNumberRecord(previousBehavioral?.helpTypeDistribution);
+    const helpTypeDistribution: Record<string, number> = {};
+    const helpKeys = new Set([
+      ...Object.keys(previousHelpDistribution),
+      ...Object.keys(helpTypeDistributionSession),
+    ]);
+    for (const key of helpKeys) {
+      const previousValue = previousHelpDistribution[key] ?? 0;
+      const sessionValue = helpTypeDistributionSession[key] ?? 0;
+      helpTypeDistribution[key] = ewma(previousValue, sessionValue);
+    }
+
+    const totalStageDuration =
+      (session.encounterDurationS ?? 0) +
+      (session.analysisDurationS ?? 0) +
+      (session.returnDurationS ?? 0);
+    const stageCounts = {
+      encounter: events.filter((event) => event.stage === 'encounter').length,
+      analysis: events.filter((event) => event.stage === 'analysis').length,
+      return: events.filter((event) => event.stage === 'return').length,
+    };
+    const totalStageCount = stageCounts.encounter + stageCounts.analysis + stageCounts.return;
+
+    const encounterTimeRatio =
+      totalStageDuration > 0
+        ? (session.encounterDurationS ?? 0) / totalStageDuration
+        : totalStageCount > 0
+          ? stageCounts.encounter / totalStageCount
+          : 0.25;
+    const analysisTimeRatio =
+      totalStageDuration > 0
+        ? (session.analysisDurationS ?? 0) / totalStageDuration
+        : totalStageCount > 0
+          ? stageCounts.analysis / totalStageCount
+          : 0.5;
+    const returnTimeRatio =
+      totalStageDuration > 0
+        ? (session.returnDurationS ?? 0) / totalStageDuration
+        : totalStageCount > 0
+          ? stageCounts.return / totalStageCount
+          : 0.25;
+
+    const confidenceValues: number[] = [];
+    const confidenceAccuracyValues: number[] = [];
+    for (const event of events) {
+      if (event.confidenceRating === null || event.confidenceRating === undefined) continue;
+      const score = toEventScore(event);
+      if (score === null) continue;
+      confidenceValues.push(clamp(event.confidenceRating / 5, 0, 1));
+      confidenceAccuracyValues.push(score);
+    }
+    const confidenceAccuracyCorr =
+      confidenceValues.length >= 2
+        ? pearsonCorrelation(confidenceValues, confidenceAccuracyValues)
+        : previousBehavioral?.confidenceAccuracyCorr ?? 0;
+    const calibrationGap =
+      confidenceValues.length > 0
+        ? average(confidenceValues) - average(confidenceAccuracyValues)
+        : previousBehavioral?.calibrationGap ?? 0;
+
+    await db
+      .insert(schema.learnerBehavioralState)
+      .values({
+        userId: user.id,
+        totalSessions: totalCompleted,
+        sessionsLast7Days: completedLast7Days,
+        sessionsLast30Days: completedLast30Days,
+        averageSessionDurationS,
+        sessionDurationTrend,
+        preferredSessionTime: getPreferredSessionTime(completedAt),
+        sessionCompletionRate,
+        averageLatencyMs,
+        latencyByType,
+        latencyTrend,
+        helpRequestRate: smoothedHelpRequestRate,
+        helpTypeDistribution,
+        helpRequestTrend,
+        encounterTimeRatio,
+        analysisTimeRatio,
+        returnTimeRatio,
+        encounterEngagementScore,
+        returnEngagementScore,
+        confidenceAccuracyCorr,
+        calibrationGap,
+        updatedAt: completedAt,
+      })
+      .onConflictDoUpdate({
+        target: [schema.learnerBehavioralState.userId],
+        set: {
+          totalSessions: totalCompleted,
+          sessionsLast7Days: completedLast7Days,
+          sessionsLast30Days: completedLast30Days,
+          averageSessionDurationS,
+          sessionDurationTrend,
+          preferredSessionTime: getPreferredSessionTime(completedAt),
+          sessionCompletionRate,
+          averageLatencyMs,
+          latencyByType,
+          latencyTrend,
+          helpRequestRate: smoothedHelpRequestRate,
+          helpTypeDistribution,
+          helpRequestTrend,
+          encounterTimeRatio,
+          analysisTimeRatio,
+          returnTimeRatio,
+          encounterEngagementScore,
+          returnEngagementScore,
+          confidenceAccuracyCorr,
+          calibrationGap,
+          updatedAt: completedAt,
+        },
+      });
+
+    const userKcRows = await db
+      .select({
+        lhAccuracy: schema.learnerKcState.lhAccuracy,
+        rhScore: schema.learnerKcState.rhScore,
+      })
+      .from(schema.learnerKcState)
+      .where(eq(schema.learnerKcState.userId, user.id));
+    const hemisphereBalanceScore = average(
+      userKcRows.map((row) => row.rhScore - row.lhAccuracy)
+    );
+
+    const previousHbsHistory = asHistoryEntries(previousCognitive?.hbsHistory);
+    const hbsHistory = [...previousHbsHistory, { date: completedAt.toISOString(), value: hemisphereBalanceScore }].slice(-30);
+    const hbsTrend =
+      hbsHistory.length >= 2
+        ? (hbsHistory[hbsHistory.length - 1].value - hbsHistory[0].value) / (hbsHistory.length - 1)
+        : 0;
+
+    const defaultModality = { visual: 0.25, auditory: 0.25, textual: 0.25, kinesthetic: 0.25 };
+    const previousModality = {
+      ...defaultModality,
+      ...asNumberRecord(previousCognitive?.modalityPreferences),
+    };
+    const modalityCounts = { visual: 0, auditory: 0, textual: 0, kinesthetic: 0 };
+    for (const event of events) {
+      if (event.responseType === 'hotspot' || event.responseType === 'drag_drop') {
+        modalityCounts.visual += 1;
+      }
+      if (
+        event.responseType === 'multiple_choice' ||
+        event.responseType === 'binary' ||
+        event.responseType === 'free_text'
+      ) {
+        modalityCounts.textual += 1;
+      }
+      if (
+        event.responseType === 'drag_drop' ||
+        event.responseType === 'rating' ||
+        event.responseType === 'confidence'
+      ) {
+        modalityCounts.kinesthetic += 1;
+      }
+    }
+    const modalityEventTotal =
+      modalityCounts.visual + modalityCounts.auditory + modalityCounts.textual + modalityCounts.kinesthetic;
+    const modalitySession =
+      modalityEventTotal > 0
+        ? {
+            visual: modalityCounts.visual / modalityEventTotal,
+            auditory: modalityCounts.auditory / modalityEventTotal,
+            textual: modalityCounts.textual / modalityEventTotal,
+            kinesthetic: modalityCounts.kinesthetic / modalityEventTotal,
+          }
+        : previousModality;
+    const rawModalityPreferences = {
+      visual: ewma(previousModality.visual, modalitySession.visual),
+      auditory: ewma(previousModality.auditory, modalitySession.auditory),
+      textual: ewma(previousModality.textual, modalitySession.textual),
+      kinesthetic: ewma(previousModality.kinesthetic, modalitySession.kinesthetic),
+    };
+    const modalitySum =
+      rawModalityPreferences.visual +
+      rawModalityPreferences.auditory +
+      rawModalityPreferences.textual +
+      rawModalityPreferences.kinesthetic;
+    const modalityPreferences =
+      modalitySum > 0
+        ? {
+            visual: rawModalityPreferences.visual / modalitySum,
+            auditory: rawModalityPreferences.auditory / modalitySum,
+            textual: rawModalityPreferences.textual / modalitySum,
+            kinesthetic: rawModalityPreferences.kinesthetic / modalitySum,
+          }
+        : defaultModality;
+
+    const metacognitiveAccuracy = clamp(Math.max(0, confidenceAccuracyCorr), 0, 1);
+    const metacognitiveTrend = previousCognitive
+      ? metacognitiveAccuracy - previousCognitive.metacognitiveAccuracy
+      : 0;
+
+    const masteryDeltas = [...masteryDeltasByKc.values()];
+    const learningVelocity = average(masteryDeltas);
+    const previousVelocityByDifficulty = asNumberRecord(previousCognitive?.velocityByDifficulty);
+    const velocityByDifficulty = {
+      tier_1: ewma(
+        previousVelocityByDifficulty.tier_1 ?? 0,
+        average(deltaByDifficultyKey.get('tier_1') ?? [])
+      ),
+      tier_2: ewma(
+        previousVelocityByDifficulty.tier_2 ?? 0,
+        average(deltaByDifficultyKey.get('tier_2') ?? [])
+      ),
+      tier_3: ewma(
+        previousVelocityByDifficulty.tier_3 ?? 0,
+        average(deltaByDifficultyKey.get('tier_3') ?? [])
+      ),
+      tier_4: ewma(
+        previousVelocityByDifficulty.tier_4 ?? 0,
+        average(deltaByDifficultyKey.get('tier_4') ?? [])
+      ),
+    };
+    const velocityTrend = previousCognitive ? learningVelocity - previousCognitive.learningVelocity : 0;
+
+    const responseTypeScores = new Map<string, number[]>();
+    for (const event of events) {
+      const score = toEventScore(event);
+      if (score === null) continue;
+      const values = responseTypeScores.get(event.responseType) ?? [];
+      values.push(score);
+      responseTypeScores.set(event.responseType, values);
+    }
+    const sortedAssessmentTypes = [...responseTypeScores.entries()]
+      .map(([type, values]) => ({ type, score: average(values) }))
+      .sort((a, b) => b.score - a.score);
+    const strongestAssessmentTypes =
+      sortedAssessmentTypes.length > 0
+        ? sortedAssessmentTypes.slice(0, 3).map((entry) => entry.type)
+        : previousCognitive?.strongestAssessmentTypes ?? [];
+    const weakestAssessmentTypes =
+      sortedAssessmentTypes.length > 0
+        ? [...sortedAssessmentTypes].reverse().slice(0, 3).map((entry) => entry.type)
+        : previousCognitive?.weakestAssessmentTypes ?? [];
+
+    const strongestTopicRows = await db
+      .select({ topicId: schema.learnerTopicProficiency.topicId })
+      .from(schema.learnerTopicProficiency)
+      .where(eq(schema.learnerTopicProficiency.userId, user.id))
+      .orderBy(desc(schema.learnerTopicProficiency.overallProficiency))
+      .limit(3);
+    const weakestTopicRows = await db
+      .select({ topicId: schema.learnerTopicProficiency.topicId })
+      .from(schema.learnerTopicProficiency)
+      .where(eq(schema.learnerTopicProficiency.userId, user.id))
+      .orderBy(schema.learnerTopicProficiency.overallProficiency)
+      .limit(3);
+
+    await db
+      .insert(schema.learnerCognitiveProfile)
+      .values({
+        userId: user.id,
+        hemisphereBalanceScore,
+        hbsHistory,
+        hbsTrend,
+        modalityPreferences,
+        metacognitiveAccuracy,
+        metacognitiveTrend,
+        learningVelocity,
+        velocityByDifficulty,
+        velocityTrend,
+        strongestAssessmentTypes,
+        weakestAssessmentTypes,
+        strongestTopics: strongestTopicRows.map((row) => row.topicId),
+        weakestTopics: weakestTopicRows.map((row) => row.topicId),
+        updatedAt: completedAt,
+      })
+      .onConflictDoUpdate({
+        target: [schema.learnerCognitiveProfile.userId],
+        set: {
+          hemisphereBalanceScore,
+          hbsHistory,
+          hbsTrend,
+          modalityPreferences,
+          metacognitiveAccuracy,
+          metacognitiveTrend,
+          learningVelocity,
+          velocityByDifficulty,
+          velocityTrend,
+          strongestAssessmentTypes,
+          weakestAssessmentTypes,
+          strongestTopics: strongestTopicRows.map((row) => row.topicId),
+          weakestTopics: weakestTopicRows.map((row) => row.topicId),
+          updatedAt: completedAt,
+        },
+      });
+
+    const normalizedSessionFrequency = Math.min(1, completedLast7Days / 7);
+    const engagementScore = clamp(
+      0.4 * normalizedSessionFrequency + 0.3 * sessionCompletionRate + 0.3 * returnEngagementScore,
+      0,
+      1
+    );
+    const previousEngagementHistory = asWeeklyEngagementHistory(previousMotivational?.engagementHistory);
+    const currentWeek = getWeekStartIso(completedAt);
+    const engagementHistory = [
+      ...previousEngagementHistory.filter((entry) => entry.week !== currentWeek),
+      { week: currentWeek, score: engagementScore },
+    ].slice(-8);
+    const engagementTrendWindow = engagementHistory.slice(-4).map((entry) => entry.score);
+    const engagementSlope =
+      engagementTrendWindow.length >= 2
+        ? (engagementTrendWindow[engagementTrendWindow.length - 1] - engagementTrendWindow[0]) /
+          (engagementTrendWindow.length - 1)
+        : 0;
+    const engagementTrend =
+      engagementSlope > 0.05 ? 'increasing' : engagementSlope < -0.05 ? 'declining' : 'stable';
+
+    const highDifficultyRate =
+      totalItems > 0 ? events.filter((event) => event.difficultyLevel >= 3).length / totalItems : 0;
+    const sessionChallengeTolerance = clamp(
+      0.5 * highDifficultyRate + 0.5 * (accuracy ?? 0),
+      0,
+      1
+    );
+    const challengeTolerance = previousMotivational
+      ? ewma(previousMotivational.challengeTolerance, sessionChallengeTolerance)
+      : sessionChallengeTolerance;
+
+    const abandonmentStage: Record<string, number> = { encounter: 0, analysis: 0, return: 0 };
+    for (const row of abandonmentRows) {
+      if (!row.stage) continue;
+      if (row.stage !== 'encounter' && row.stage !== 'analysis' && row.stage !== 'return') continue;
+      abandonmentStage[row.stage] = abandonedCount > 0 ? row.count / abandonedCount : 0;
+    }
+    const sessionAbandonmentRate = totalStarted > 0 ? abandonedCount / totalStarted : 0;
+
+    const recentAccuracyRows = await db
+      .select({ accuracy: schema.sessions.accuracy })
+      .from(schema.sessions)
+      .where(
+        and(
+          eq(schema.sessions.userId, user.id),
+          eq(schema.sessions.status, 'completed'),
+          sql`${schema.sessions.id} <> ${sessionId}`,
+          sql`${schema.sessions.accuracy} IS NOT NULL`
+        )
+      )
+      .orderBy(desc(schema.sessions.completedAt))
+      .limit(5);
+    const recentAccuracyValues = recentAccuracyRows
+      .map((row) => row.accuracy)
+      .filter((value): value is number => value !== null && value !== undefined);
+    const baselineAccuracy = average(recentAccuracyValues);
+    const accuracyDeclining = accuracy !== null && recentAccuracyValues.length > 0 && accuracy < baselineAccuracy;
+    const latencyIncreasing = previousBehavioral
+      ? sessionAverageLatencyMs > previousBehavioral.averageLatencyMs
+      : false;
+    const frequencySpike =
+      completedLast30Days > 0 ? completedLast7Days > 2 * (completedLast30Days / 4) : false;
+    const burnoutSignalCount = [frequencySpike, accuracyDeclining, latencyIncreasing].filter(Boolean).length;
+    const burnoutRisk =
+      burnoutSignalCount === 3 ? 'high' : burnoutSignalCount >= 2 ? 'moderate' : 'low';
+
+    const daysSinceLastSession = 0;
+    const dropoutRisk =
+      engagementTrend === 'declining' && daysSinceLastSession > 7 && sessionAbandonmentRate > 0.4
+        ? 'high'
+        : engagementTrend === 'declining' || daysSinceLastSession > 5 || sessionAbandonmentRate > 0.3
+          ? 'moderate'
+          : 'low';
+
+    await db
+      .insert(schema.learnerMotivationalState)
+      .values({
+        userId: user.id,
+        engagementTrend,
+        engagementScore,
+        engagementHistory,
+        topicChoiceRate: previousMotivational?.topicChoiceRate ?? 0,
+        explorationRate: previousMotivational?.explorationRate ?? 0,
+        preferredSessionType: session.sessionType,
+        challengeTolerance,
+        sessionAbandonmentRate,
+        abandonmentStage,
+        lastActive: completedAt,
+        daysSinceLastSession,
+        dropoutRisk,
+        burnoutRisk,
+        updatedAt: completedAt,
+      })
+      .onConflictDoUpdate({
+        target: [schema.learnerMotivationalState.userId],
+        set: {
+          engagementTrend,
+          engagementScore,
+          engagementHistory,
+          topicChoiceRate: previousMotivational?.topicChoiceRate ?? 0,
+          explorationRate: previousMotivational?.explorationRate ?? 0,
+          preferredSessionType: session.sessionType,
+          challengeTolerance,
+          sessionAbandonmentRate,
+          abandonmentStage,
+          lastActive: completedAt,
+          daysSinceLastSession,
+          dropoutRisk,
+          burnoutRisk,
+          updatedAt: completedAt,
+        },
+      });
+
+    // ── 10. Return summary ───────────────────────────────────────────────────
     return c.json({
       summary: {
         totalItems,

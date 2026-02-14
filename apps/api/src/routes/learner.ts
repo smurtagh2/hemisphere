@@ -5,6 +5,268 @@ import { authMiddleware, type AppEnv } from '../middleware/auth.js';
 
 export const learnerRoutes = new Hono<AppEnv>();
 
+const DEFAULT_MODALITY_PREFERENCES = {
+  visual: 0.25,
+  auditory: 0.25,
+  textual: 0.25,
+  kinesthetic: 0.25,
+} as const;
+
+const DEFAULT_ABANDONMENT_STAGE = {
+  encounter: 0,
+  analysis: 0,
+  return: 0,
+} as const;
+
+function toNumberMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const result: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      result[key] = raw;
+    }
+  }
+  return result;
+}
+
+function toArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+// ─── GET /knowledge-state ────────────────────────────────────────────────────
+
+/**
+ * GET /api/learner/knowledge-state
+ *
+ * Returns the full four-layer learner model for the authenticated user:
+ * knowledge, behavioral, cognitive, and motivational state.
+ */
+learnerRoutes.get('/knowledge-state', authMiddleware, async (c) => {
+  const user = c.get('user');
+
+  try {
+    const [kcRows, topicRows, behavioralRows, cognitiveRows, motivationalRows] = await Promise.all([
+      db
+        .select({
+          kcId: schema.learnerKcState.kcId,
+          kcName: schema.knowledgeComponents.name,
+          kcSlug: schema.knowledgeComponents.slug,
+          topicId: schema.knowledgeComponents.topicId,
+          masteryLevel: schema.learnerKcState.masteryLevel,
+          difficultyTier: schema.learnerKcState.difficultyTier,
+          lhAccuracy: schema.learnerKcState.lhAccuracy,
+          lhAttempts: schema.learnerKcState.lhAttempts,
+          rhScore: schema.learnerKcState.rhScore,
+          rhAttempts: schema.learnerKcState.rhAttempts,
+          integratedScore: schema.learnerKcState.integratedScore,
+          lastPracticed: schema.learnerKcState.lastPracticed,
+          updatedAt: schema.learnerKcState.updatedAt,
+        })
+        .from(schema.learnerKcState)
+        .innerJoin(
+          schema.knowledgeComponents,
+          eq(schema.learnerKcState.kcId, schema.knowledgeComponents.id)
+        )
+        .where(eq(schema.learnerKcState.userId, user.id)),
+      db
+        .select({
+          topicId: schema.learnerTopicProficiency.topicId,
+          topicName: schema.topics.name,
+          topicSlug: schema.topics.slug,
+          overallProficiency: schema.learnerTopicProficiency.overallProficiency,
+          kcCount: schema.learnerTopicProficiency.kcCount,
+          kcMastered: schema.learnerTopicProficiency.kcMastered,
+          kcInProgress: schema.learnerTopicProficiency.kcInProgress,
+          kcNotStarted: schema.learnerTopicProficiency.kcNotStarted,
+          sessionsCompleted: schema.learnerTopicProficiency.sessionsCompleted,
+          updatedAt: schema.learnerTopicProficiency.updatedAt,
+        })
+        .from(schema.learnerTopicProficiency)
+        .innerJoin(schema.topics, eq(schema.learnerTopicProficiency.topicId, schema.topics.id))
+        .where(eq(schema.learnerTopicProficiency.userId, user.id)),
+      db
+        .select()
+        .from(schema.learnerBehavioralState)
+        .where(eq(schema.learnerBehavioralState.userId, user.id))
+        .limit(1),
+      db
+        .select()
+        .from(schema.learnerCognitiveProfile)
+        .where(eq(schema.learnerCognitiveProfile.userId, user.id))
+        .limit(1),
+      db
+        .select()
+        .from(schema.learnerMotivationalState)
+        .where(eq(schema.learnerMotivationalState.userId, user.id))
+        .limit(1),
+    ]);
+
+    const behavioral = behavioralRows[0];
+    const cognitive = cognitiveRows[0];
+    const motivational = motivationalRows[0];
+
+    return c.json({
+      knowledge: {
+        topics: topicRows.map((row) => ({
+          topicId: row.topicId,
+          topicName: row.topicName,
+          topicSlug: row.topicSlug,
+          overallProficiency: row.overallProficiency,
+          kcCount: row.kcCount,
+          kcMastered: row.kcMastered,
+          kcInProgress: row.kcInProgress,
+          kcNotStarted: row.kcNotStarted,
+          sessionsCompleted: row.sessionsCompleted,
+          updatedAt: row.updatedAt.toISOString(),
+        })),
+        kcStates: kcRows.map((row) => ({
+          kcId: row.kcId,
+          kcName: row.kcName,
+          kcSlug: row.kcSlug,
+          topicId: row.topicId,
+          masteryLevel: row.masteryLevel,
+          difficultyTier: row.difficultyTier,
+          lhAccuracy: row.lhAccuracy,
+          lhAttempts: row.lhAttempts,
+          rhScore: row.rhScore,
+          rhAttempts: row.rhAttempts,
+          integratedScore: row.integratedScore,
+          lastPracticed: row.lastPracticed?.toISOString() ?? null,
+          updatedAt: row.updatedAt.toISOString(),
+        })),
+      },
+      behavioral: behavioral
+        ? {
+            totalSessions: behavioral.totalSessions,
+            sessionsLast7Days: behavioral.sessionsLast7Days,
+            sessionsLast30Days: behavioral.sessionsLast30Days,
+            averageSessionDurationS: behavioral.averageSessionDurationS,
+            sessionDurationTrend: behavioral.sessionDurationTrend,
+            preferredSessionTime: behavioral.preferredSessionTime,
+            sessionCompletionRate: behavioral.sessionCompletionRate,
+            averageLatencyMs: behavioral.averageLatencyMs,
+            latencyByType: toNumberMap(behavioral.latencyByType),
+            latencyTrend: behavioral.latencyTrend,
+            helpRequestRate: behavioral.helpRequestRate,
+            helpTypeDistribution: toNumberMap(behavioral.helpTypeDistribution),
+            helpRequestTrend: behavioral.helpRequestTrend,
+            encounterTimeRatio: behavioral.encounterTimeRatio,
+            analysisTimeRatio: behavioral.analysisTimeRatio,
+            returnTimeRatio: behavioral.returnTimeRatio,
+            encounterEngagementScore: behavioral.encounterEngagementScore,
+            returnEngagementScore: behavioral.returnEngagementScore,
+            confidenceAccuracyCorr: behavioral.confidenceAccuracyCorr,
+            calibrationGap: behavioral.calibrationGap,
+            updatedAt: behavioral.updatedAt.toISOString(),
+          }
+        : {
+            totalSessions: 0,
+            sessionsLast7Days: 0,
+            sessionsLast30Days: 0,
+            averageSessionDurationS: 0,
+            sessionDurationTrend: 0,
+            preferredSessionTime: 'evening',
+            sessionCompletionRate: 1,
+            averageLatencyMs: 0,
+            latencyByType: {},
+            latencyTrend: 0,
+            helpRequestRate: 0,
+            helpTypeDistribution: {},
+            helpRequestTrend: 0,
+            encounterTimeRatio: 0.25,
+            analysisTimeRatio: 0.5,
+            returnTimeRatio: 0.25,
+            encounterEngagementScore: 0,
+            returnEngagementScore: 0,
+            confidenceAccuracyCorr: 0,
+            calibrationGap: 0,
+            updatedAt: null,
+          },
+      cognitive: cognitive
+        ? {
+            hemisphereBalanceScore: cognitive.hemisphereBalanceScore,
+            hbsHistory: toArray(cognitive.hbsHistory),
+            hbsTrend: cognitive.hbsTrend,
+            modalityPreferences: {
+              ...DEFAULT_MODALITY_PREFERENCES,
+              ...toNumberMap(cognitive.modalityPreferences),
+            },
+            metacognitiveAccuracy: cognitive.metacognitiveAccuracy,
+            metacognitiveTrend: cognitive.metacognitiveTrend,
+            learningVelocity: cognitive.learningVelocity,
+            velocityByDifficulty: toNumberMap(cognitive.velocityByDifficulty),
+            velocityTrend: cognitive.velocityTrend,
+            strongestAssessmentTypes: cognitive.strongestAssessmentTypes,
+            weakestAssessmentTypes: cognitive.weakestAssessmentTypes,
+            strongestTopics: cognitive.strongestTopics,
+            weakestTopics: cognitive.weakestTopics,
+            updatedAt: cognitive.updatedAt.toISOString(),
+          }
+        : {
+            hemisphereBalanceScore: 0,
+            hbsHistory: [],
+            hbsTrend: 0,
+            modalityPreferences: DEFAULT_MODALITY_PREFERENCES,
+            metacognitiveAccuracy: 0.5,
+            metacognitiveTrend: 0,
+            learningVelocity: 0,
+            velocityByDifficulty: {},
+            velocityTrend: 0,
+            strongestAssessmentTypes: [],
+            weakestAssessmentTypes: [],
+            strongestTopics: [],
+            weakestTopics: [],
+            updatedAt: null,
+          },
+      motivational: motivational
+        ? {
+            engagementTrend: motivational.engagementTrend,
+            engagementScore: motivational.engagementScore,
+            engagementHistory: toArray(motivational.engagementHistory),
+            topicChoiceRate: motivational.topicChoiceRate,
+            explorationRate: motivational.explorationRate,
+            preferredSessionType: motivational.preferredSessionType,
+            challengeTolerance: motivational.challengeTolerance,
+            sessionAbandonmentRate: motivational.sessionAbandonmentRate,
+            abandonmentStage: {
+              ...DEFAULT_ABANDONMENT_STAGE,
+              ...toNumberMap(motivational.abandonmentStage),
+            },
+            lastActive: motivational.lastActive?.toISOString() ?? null,
+            daysSinceLastSession: motivational.daysSinceLastSession,
+            dropoutRisk: motivational.dropoutRisk,
+            burnoutRisk: motivational.burnoutRisk,
+            updatedAt: motivational.updatedAt.toISOString(),
+          }
+        : {
+            engagementTrend: 'stable',
+            engagementScore: 0.5,
+            engagementHistory: [],
+            topicChoiceRate: 0,
+            explorationRate: 0,
+            preferredSessionType: 'standard',
+            challengeTolerance: 0.5,
+            sessionAbandonmentRate: 0,
+            abandonmentStage: DEFAULT_ABANDONMENT_STAGE,
+            lastActive: null,
+            daysSinceLastSession: 0,
+            dropoutRisk: 'low',
+            burnoutRisk: 'low',
+            updatedAt: null,
+          },
+    });
+  } catch (err) {
+    console.error('GET /api/learner/knowledge-state error:', err);
+    return c.json(
+      { error: 'Internal Server Error', message: 'An unexpected error occurred' },
+      500
+    );
+  }
+});
+
 // ─── GET /kc-states ───────────────────────────────────────────────────────────
 
 /**
