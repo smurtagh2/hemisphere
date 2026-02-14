@@ -31,6 +31,11 @@ import {
   type SessionRecord,
 } from '@/lib/api';
 
+import {
+  trackSessionStarted,
+  trackSessionCompleted,
+} from '@/lib/posthog';
+
 // ---------------------------------------------------------------------------
 // Stage transition overlay
 // ---------------------------------------------------------------------------
@@ -170,6 +175,7 @@ export default function SessionPage() {
 
   // Accumulate accuracy across stages for the completion call
   const accuracyRef = useRef<number>(1);
+  const sessionStartRef = useRef<number>(Date.now());
 
   // Bootstrap the session
   useEffect(() => {
@@ -187,7 +193,12 @@ export default function SessionPage() {
           accuracy: null,
           itemCount: 0,
         };
-        if (!cancelled) { setSession(stub); setStage('encounter'); }
+        if (!cancelled) {
+          setSession(stub);
+          setStage('encounter');
+          trackSessionStarted(stub.id, 'full', stub.topicId);
+          sessionStartRef.current = Date.now();
+        }
         return;
       }
 
@@ -209,6 +220,8 @@ export default function SessionPage() {
         if (!cancelled) {
           setSession(rec);
           setStage('encounter');
+          trackSessionStarted(rec.id, 'full', rec.topicId);
+          sessionStartRef.current = Date.now();
         }
       } catch (err) {
         if (!cancelled) {
@@ -246,6 +259,7 @@ export default function SessionPage() {
       // Non-fatal — still navigate to the complete page
     }
 
+    trackSessionCompleted(session.id, 'full', Date.now() - sessionStartRef.current);
     router.push(`/session/${session.id}/complete`);
   }
 

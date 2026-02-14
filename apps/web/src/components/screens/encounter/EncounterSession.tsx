@@ -37,6 +37,7 @@ import {
   useSessionStore,
   useSessionActions,
 } from '../../../lib/store';
+import { trackEncounterViewed } from '../../../lib/posthog';
 
 import { HookScreen } from './HookScreen';
 import { NarrativeScreen, type NarrativeSection } from './NarrativeScreen';
@@ -160,6 +161,13 @@ export function EncounterSession({
     initQueue(ENCOUNTER_ITEM_IDS, 'encounter');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Track each screen view as the learner advances.
+  const SCREEN_NAMES = ['hook', 'narrative', 'spatial', 'anchor'] as const;
+  useEffect(() => {
+    trackEncounterViewed(ENCOUNTER_ITEM_IDS[screenIndex], SCREEN_NAMES[screenIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenIndex]);
 
   // ---- Navigation ----------------------------------------------------------
 

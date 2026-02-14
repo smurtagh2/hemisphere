@@ -1,0 +1,835 @@
+# Music Harmony Module - Encounter Stage Content
+# Topic: Chord Progressions and the Emotional Language of Harmony
+# Template: Creative/Systems
+# Stage: Encounter (RH-Primary)
+# Purpose: Visual QA seed content for the first module Encounter session
+
+schemaVersion: '1.0'
+
+topics:
+  - id: music-harmony
+    version: 1.0.0
+
+    metadata:
+      title: "The Emotional Language of Harmony"
+      subtitle: "How chord progressions tell stories without words"
+      summary: "Explore how sequences of chords create tension, release, and emotional narrative — and why the same four chords appear in thousands of songs across centuries."
+      subject: music
+      template: creative_systems
+      targetAudience: general
+      estimatedDuration: 20
+      prerequisites: []
+      tags:
+        - music
+        - harmony
+        - chord-progressions
+        - consonance
+        - dissonance
+        - intervals
+        - emotion
+      authors:
+        - name: Hemisphere Content Team
+          role: author
+      createdAt: '2026-02-14T00:00:00Z'
+      updatedAt: '2026-02-14T00:00:00Z'
+
+    learningObjectives:
+      - id: obj-1
+        objective: Recognise the emotional character of major, minor, and dominant seventh chords by ear
+        bloom: understand
+      - id: obj-2
+        objective: Explain why certain chord sequences feel resolved while others feel suspended
+        bloom: understand
+      - id: obj-3
+        objective: Identify the I–V–vi–IV progression in familiar songs
+        bloom: analyze
+      - id: obj-4
+        objective: Construct a four-chord progression that conveys a specific emotional arc
+        bloom: create
+
+    stages:
+
+      # =========================================================================
+      # ENCOUNTER STAGE (RH-Primary)
+      # Warm, immersive, untimed — draw learners in through narrative and sensation
+      # =========================================================================
+      encounter:
+        stage: encounter
+        name: The Encounter
+        description: Meet harmony as a living, felt experience before analysis begins
+        estimatedDuration: 300
+
+        uiTheme:
+          colorPalette: warm_immersive
+          typography: serif_narrative
+          layout: expansive
+          timing: untimed
+
+        transition:
+          type: crossfade
+          duration: 1.5
+          bridgeText: "Now let's look inside those sounds and understand how they work."
+          hapticCue: pulse
+
+        contentItems:
+
+          # -------------------------------------------------------------------
+          # Screen 1: The Hook
+          # Draw learners in with an immediate, felt experience
+          # -------------------------------------------------------------------
+          - id: enc-hook
+            type: narrative
+            title: "The Hook"
+            content: |
+              Close your eyes for a moment.
+
+              Four chords. That's all it takes.
+
+              Thousands of songs — from Baroque cantatas to stadium anthems — are built from the same four-chord sequence. You've heard it in pop, in film scores, in hymns. You felt it without knowing its name.
+
+              Today you'll learn its name. And why it moves you.
+            duration: 50
+            media:
+              - type: audio
+                url: /assets/audio/music-harmony/four-chord-loop.mp3
+                alt: Gentle piano loop of the I–V–vi–IV chord progression in C major, played slowly and contemplatively
+                duration: 12
+                artistNotes: A single piano, recorded close. Play I–V–vi–IV in C major (C–G–Am–F) as a slow, even loop — no ornamentation, just the bare chords. The feel should be intimate and slightly mysterious, as if the listener is hearing something familiar for the first time. Reverb medium room. Duration approximately 12 seconds, loopable.
+              - type: image
+                url: /assets/images/music-harmony/sheet-music-candlelight.jpg
+                alt: Open sheet music on a wooden desk lit by warm candlelight, with a single hand resting at the edge of the page
+                artistNotes: A piece of hand-written sheet music lies open on a warm wooden desk. Candlelight illuminates the page from the left — the staves and notes glow amber. One hand rests at the edge of the page, not playing, just present. Style is painterly and intimate, shallow depth of field. The mood is discovery, not performance.
+            layout: full_bleed
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+              difficulty: novice
+
+          # -------------------------------------------------------------------
+          # Screen 2: The Narrative Frame
+          # The story that gives the concept meaning
+          # -------------------------------------------------------------------
+          - id: enc-narrative
+            type: narrative
+            title: "A Language Without Words"
+            content: |
+              ## The Composer's Secret
+
+              In 1714, Antonio Vivaldi sat down to write a concerto. He needed music that would evoke spring — birdsong, warming air, the return of life. He reached for the same harmonic tools composers had been using for a century: a home chord, a tension chord, a detour into sadness, and a return home.
+
+              Three hundred years later, those same four moves appeared in "Let It Be," "No Woman No Cry," "Africa," "Don't Stop Believin'," and over a thousand other songs. Axis of Awesome performed 36 of them in a single medley, switching seamlessly from one to the next, revealing the skeleton beneath the skin.
+
+              Why do these same four chords appear across cultures, centuries, and genres?
+
+              Because they map onto something universal: the human experience of departure and return. We leave home. We feel tension. We find a moment of sadness or reflection. We come back. That is the shape of a story. And harmony is how music tells it.
+            duration: 100
+            media:
+              - type: image
+                url: /assets/images/music-harmony/vivaldi-study.jpg
+                alt: Illustration of an 18th-century composer at a writing desk surrounded by manuscript paper, quill in hand, morning light through a tall window
+                artistNotes: An 18th-century study. A figure in period clothing (loosely Vivaldi-inspired — red-haired, with a hint of clerical robes) sits at a writing desk covered in manuscript paper. A quill is mid-stroke. Morning light streams through a tall arched window. The style should be warm and illustrative, not historically exact — painterly, suggestive. Focus on the absorption of the figure, the act of creation.
+              - type: image
+                url: /assets/images/music-harmony/modern-band-rehearsal.jpg
+                alt: A small band rehearsing in a warmly lit room — guitar, bass, and keyboard visible — mid-conversation about a chord sheet
+                artistNotes: A contemporary band rehearsal space. Three or four musicians (diverse gender and ethnicity) are mid-discussion, looking at a chord chart on a music stand. Instruments are guitar, bass, keyboard. Warm tungsten lighting. The mood is collaborative and alive. Same painterly warmth as the Vivaldi scene — the visual rhyme across time is intentional.
+            interactions:
+              - id: enc-predict
+                type: prediction
+                prompt: |
+                  Before we go deeper — listen to these two short chord sequences.
+
+                  Which one feels like it ends? Which one feels like it's still waiting?
+                media:
+                  type: audio
+                  url: /assets/audio/music-harmony/resolved-vs-suspended.mp3
+                  alt: Two four-bar phrases played on piano — the first ending on the tonic (resolved), the second ending on the dominant (suspended)
+                  duration: 14
+                feedback:
+                  general: "Your ear already knows. The first phrase ends on the home chord — the tonic. The second ends on a chord that wants to go somewhere. Your brain has been trained by a lifetime of music to feel this difference. Now you'll understand why."
+                allowSkip: true
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          # -------------------------------------------------------------------
+          # Screen 3: Spatial Overview
+          # The map of territory — where we are, where we're going
+          # -------------------------------------------------------------------
+          - id: enc-overview
+            type: spatial_map
+            title: "The Territory of Harmony"
+            content: |
+              Here is the landscape you are about to explore. Each node is a concept. Each connection is a relationship. By the end of this module, you will have navigated the whole terrain.
+
+              Today we begin with chord progressions — the sequences that give harmony its sense of movement and meaning.
+            duration: 50
+            media:
+              - type: interactive
+                url: /assets/interactive/music-harmony/concept-map.json
+                alt: Interactive concept map showing Harmony at the centre, with branches to Intervals, Consonance, Dissonance, Chord Types, Chord Progressions, and Emotional Response
+                caption: Tap any node to preview what you will learn
+                artistNotes: A clean, warm-toned concept map. Central node labelled Harmony in a serif font. Six branching nodes in organic positions — not rigid grid, slightly asymmetric. Node labels include Intervals, Consonance, Dissonance, Chord Types, Chord Progressions, Emotional Response. Connecting lines are curved, not straight. Nodes glow softly on tap. Background is off-white or warm parchment. The visual language should feel like a hand-drawn diagram, not a corporate flowchart.
+              - type: image
+                url: /assets/images/music-harmony/concept-map-static.svg
+                alt: Static version of the harmony concept map for non-interactive display
+                artistNotes: Static SVG version of the concept map above — same visual language. Used as fallback if interactive version is unavailable.
+            layout: spatial
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          # -------------------------------------------------------------------
+          # Screen 4: Emotional Anchor
+          # Connect the content to the learner's personal experience
+          # -------------------------------------------------------------------
+          - id: enc-anchor
+            type: reflection_prompt
+            title: "Your Soundtrack"
+            content: |
+              Music doesn't just describe emotion — it is emotion. The chords you'll study aren't abstract theory. They are the architecture of moments that mattered to you.
+
+              A song that played when you fell in love. A piece that stayed with you after loss. A melody that appeared in a film at exactly the right second.
+
+              By the end of this module, you'll hear those moments differently. Not less — more.
+            duration: 70
+            interactions:
+              - id: enc-personal-anchor
+                type: free_text
+                prompt: |
+                  Think of a song or piece of music that genuinely moves you — one that produces a physical response (chills, tears, a swell in the chest). What is it, and what does it make you feel?
+
+                  This is your private learning journal. No one else sees this.
+                allowSkip: true
+                feedback:
+                  general: "Hold onto that feeling. Everything you learn in this module connects back to it."
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+      # =========================================================================
+      # ANALYSIS STAGE (LH-Primary)
+      # Cool, focused, paced — build precise understanding of the concepts
+      # =========================================================================
+      analysis:
+        stage: analysis
+        name: The Analysis
+        description: Understand the mechanics of chord progressions through structured concepts and practice
+        estimatedDuration: 450
+
+        uiTheme:
+          colorPalette: cool_focused
+          typography: sans_structured
+          layout: grid
+          timing: paced
+
+        transition:
+          type: shift
+          duration: 2.0
+          bridgeText: "Now let's bring these concepts back to the music that first moved you."
+          hapticCue: none
+
+        contentItems:
+
+          # -------------------------------------------------------------------
+          # KC 1: Chord Progressions
+          # Knowledge concept: the I–V–vi–IV progression
+          # -------------------------------------------------------------------
+          - id: ana-kc-progressions
+            type: concept_card
+            title: "Chord Progressions"
+            content: |
+              # Chord Progressions
+
+              A chord progression is a sequence of chords played in a specific order.
+
+              Chords don't exist in isolation — they gain meaning through motion. Moving from one chord to another creates expectation, tension, and resolution: the building blocks of musical narrative.
+
+              The I–V–vi–IV Progression
+
+              The most common progression in Western popular music uses four chords built on scale degrees I, V, vi, and IV.
+
+              Scale Degree I — C major — notes C–E–G — character: Home, stable.
+              Scale Degree V — G major — notes G–B–D — character: Tension, forward.
+              Scale Degree vi — A minor — notes A–C–E — character: Reflective, ache.
+              Scale Degree IV — F major — notes F–A–C — character: Open, expansive.
+
+              The sequence moves away from home (I), builds tension (V), explores sadness (vi), and opens outward (IV) — before cycling back. It is departure and return compressed into four chords.
+
+              Why it works across genres: The progression balances stability and movement. The V chord wants to resolve back to I (a pull called dominant resolution). The vi chord introduces a minor colour without full dissonance. The IV chord provides breathing room before the return.
+            duration: 130
+            media:
+              - type: image
+                url: /assets/images/music-harmony/i-v-vi-iv-diagram.svg
+                alt: Diagram showing the I–V–vi–IV progression on a piano keyboard with scale degrees labelled and arrows indicating the direction of movement
+                artistNotes: Clean, instructional SVG diagram. Show a piano keyboard spanning one octave from C. Highlight the four chords in sequence with coloured overlays — warm amber for I, deep blue for V, muted purple for vi, sage green for IV. Label each with Roman numeral, chord name, and notes. Arrows below the keyboard show the cyclic direction of the progression. Typography is sans-serif, clean.
+              - type: audio
+                url: /assets/audio/music-harmony/i-v-vi-iv-demonstration.mp3
+                alt: Piano demonstrating I–V–vi–IV in C major, played three times — once slow and isolated, once at moderate tempo, once as a flowing accompaniment pattern
+                duration: 30
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          # -------------------------------------------------------------------
+          # KC 2: Consonance and Dissonance
+          # Knowledge concept: tension and release within progressions
+          # -------------------------------------------------------------------
+          - id: ana-kc-consonance-dissonance
+            type: concept_card
+            title: "Tension and Release"
+            content: |
+              # Tension and Release: Consonance and Dissonance
+
+              Consonance — intervals and chords that sound stable, at rest.
+              Dissonance — intervals and chords that sound tense, wanting to move.
+
+              In a chord progression, consonance and dissonance alternate to create momentum. Music without dissonance has no tension — nothing to resolve. Music without consonance has no home — nowhere to return.
+
+              Dominant Resolution: The Strongest Pull in Tonal Music
+
+              The move from V to I is the most powerful harmonic gesture in Western music. The V chord (dominant) contains a tritone — the most dissonant interval — between its third and seventh (in a V7 chord). This tritone must resolve:
+
+              The seventh of the dominant falls by a semitone to the third of the tonic (B to C in C major). The tritone disappears into consonance.
+
+              This resolution is called dominant-to-tonic or V to I. You hear it at the end of almost every traditional song, phrase, and cadence. It is the harmonic equivalent of a held breath finally released.
+
+              The vi Chord: Relative Minor
+
+              The vi chord shares two notes with I — in C major, Am (A–C–E) shares C and E with C major (C–E–G). This makes the move from I to vi feel like a subtle darkening, a shadow falling over the same landscape. Not a departure to somewhere foreign — a shift in light.
+            duration: 130
+            media:
+              - type: image
+                url: /assets/images/music-harmony/tension-release-arc.svg
+                alt: Graph showing harmonic tension level across the I–V–vi–IV progression, rising at V, dipping at vi, broadening at IV, resolving at I
+                artistNotes: A clean line-graph-style SVG. X-axis has four positions labelled I, V, vi, IV. Y-axis labelled Tension from low to high. The line rises steeply from I to V, drops moderately at vi, rises slightly at IV, then an implied resolution arrow back to I. Colour the line with a gradient matching the chord colours from the progression diagram. Minimalist, instructional.
+              - type: audio
+                url: /assets/audio/music-harmony/dominant-resolution.mp3
+                alt: Piano demonstrating G7 resolving to C major three times, then the same gesture embedded in a short phrase
+                duration: 12
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          # -------------------------------------------------------------------
+          # KC 3: Chord Types — Major, Minor, Dominant Seventh
+          # Knowledge concept: the building blocks of progressions
+          # -------------------------------------------------------------------
+          - id: ana-kc-chord-types
+            type: concept_card
+            title: "Chord Types: The Vocabulary"
+            content: |
+              # Chord Types: The Vocabulary of Harmony
+
+              A chord is three or more notes sounding together. The intervals between those notes give each chord its emotional character.
+
+              Major Chord — Root plus Major 3rd (4 semitones) plus Minor 3rd (3 semitones). Sounds bright, stable, complete. Example: C major = C–E–G.
+
+              Minor Chord — Root plus Minor 3rd (3 semitones) plus Major 3rd (4 semitones). Sounds darker, more inward, reflective. Example: A minor = A–C–E.
+
+              Dominant Seventh Chord — Major chord plus Minor 7th (10 semitones from root). Sounds tense, urgent, pointing forward. Example: G dominant seventh = G–B–D–F. Note: The F creates a tritone with B, generating the pull toward resolution.
+
+              Why the vi is minor matters:
+              In the I–V–vi–IV progression, the vi chord is always minor. This is not a coincidence — it is the contrast that gives the progression its emotional depth. The I and IV are bright; the V is tense; the vi is the moment of shadow that makes the return to I feel like relief.
+
+              Chord type formulas in semitones from root:
+              Major — 0 plus 4 plus 3 — sounds bright.
+              Minor — 0 plus 3 plus 4 — sounds dark.
+              Dominant Seventh — 0 plus 4 plus 3 plus 3 — sounds tense.
+            duration: 120
+            media:
+              - type: image
+                url: /assets/images/music-harmony/chord-types-keyboard.svg
+                alt: Three piano keyboard diagrams side-by-side showing C major, A minor, and G dominant seventh with highlighted keys and interval labels
+                artistNotes: Three small keyboard diagrams arranged horizontally. Each spans one octave. Keys are highlighted in chord-specific colours (amber for major, deep purple for minor, teal for dominant seventh). Below each keyboard, interval labels show the semitone gaps. Above each, the chord name and formula. Clean, instructional, consistent visual language with other Analysis-stage diagrams.
+              - type: audio
+                url: /assets/audio/music-harmony/chord-types-examples.mp3
+                alt: C major, A minor, and G dominant seventh played in sequence on piano, then each repeated with arpeggiated version
+                duration: 18
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          # -------------------------------------------------------------------
+          # Practice: Retrieval on all three KCs
+          # -------------------------------------------------------------------
+          - id: ana-practice
+            type: practice
+            title: "Retrieval Practice"
+            content: Test your understanding through active recall — the most powerful way to consolidate learning.
+            duration: 160
+            interactions:
+              - id: prac-prog-1
+                type: free_recall
+                prompt: "What are the four scale degrees in the most common Western pop chord progression, in order?"
+                correctAnswer: "I, V, vi, IV"
+                feedback:
+                  correct: "Exactly — I, V, vi, IV. Home, tension, shadow, expansion. The shape of a thousand songs."
+                  partial: "Close — the full sequence is I, V, vi, IV. Each degree has a distinct emotional role."
+                  incorrect: "The sequence is I, V, vi, IV. In C major: C major, G major, A minor, F major."
+                tags:
+                  - chord-progressions
+                  - i-v-vi-iv
+
+              - id: prac-prog-2
+                type: audio_recognition
+                prompt: "Listen to this chord sequence. Does it end on a resolved (home) chord, or a suspended (tension) chord?"
+                media:
+                  type: audio
+                  url: /assets/audio/music-harmony/suspended-ending-test.mp3
+                  alt: A four-bar piano phrase that ends on the V chord (G major), leaving tension unresolved
+                  duration: 8
+                options:
+                  - id: opt-resolved
+                    text: Resolved — it ends at home
+                    isCorrect: false
+                  - id: opt-suspended
+                    text: Suspended — it ends in tension
+                    isCorrect: true
+                correctAnswer: opt-suspended
+                feedback:
+                  correct: "You heard it — the phrase ends on the V chord (dominant), which pulls toward resolution but doesn't arrive. That unresolved tension is why the phrase feels unfinished."
+                  incorrect: "Listen again for that forward-leaning feeling at the end. The final chord is the dominant (V) — it wants to resolve to the tonic (I) but hasn't yet."
+                tags:
+                  - chord-progressions
+                  - consonance
+                  - dissonance
+                  - tension-release
+
+              - id: prac-chord-types-1
+                type: audio_recognition
+                prompt: "What type of chord is this?"
+                media:
+                  type: audio
+                  url: /assets/audio/music-harmony/a-minor-test.mp3
+                  alt: A minor chord played on piano
+                  duration: 4
+                options:
+                  - id: opt-major
+                    text: Major
+                    isCorrect: false
+                  - id: opt-minor
+                    text: Minor
+                    isCorrect: true
+                  - id: opt-dom7
+                    text: Dominant Seventh
+                    isCorrect: false
+                correctAnswer: opt-minor
+                feedback:
+                  correct: "That's a minor chord — darker and more inward than major. Built from a minor third on the bottom and a major third on top."
+                  incorrect: "Listen for that darker, more inward quality compared to a major chord. This is a minor chord — minor third (3 semitones) at the bottom, major third (4 semitones) on top."
+                tags:
+                  - chord-types
+                  - minor-chord
+                  - audio-recognition
+
+              - id: prac-consonance-1
+                type: categorization
+                prompt: "Sort these chords from the I–V–vi–IV progression by their primary character."
+                options:
+                  - id: cat-stable
+                    text: "I (C major) — Stable, home"
+                    isCorrect: true
+                    feedback: "I is the tonic — the harmonic home base. Maximally consonant and resolved."
+                  - id: cat-tense
+                    text: "V (G major) — Tense, forward-pointing"
+                    isCorrect: true
+                    feedback: "V is the dominant. It contains the strongest pull in tonal music — the desire to resolve back to I."
+                  - id: cat-shadow
+                    text: "vi (A minor) — Reflective, shadowed"
+                    isCorrect: true
+                    feedback: "vi is the relative minor. It shares notes with I, creating a darkening without a full harmonic departure."
+                  - id: cat-open
+                    text: "IV (F major) — Open, expansive"
+                    isCorrect: true
+                    feedback: "IV is the subdominant. It moves away from home without the urgent tension of V, creating a feeling of broad space."
+                feedback:
+                  correct: "Perfect — you understand the emotional role of each chord in the progression."
+                  partial: "Good start. Each chord in I–V–vi–IV has a distinct emotional character tied to its harmonic function."
+                  incorrect: "I = home (stable), V = dominant (tense), vi = relative minor (shadowed), IV = subdominant (open)."
+                tags:
+                  - chord-progressions
+                  - chord-types
+                  - consonance
+                  - dissonance
+
+              - id: prac-semitones-1
+                type: fill_blank
+                prompt: "Complete the formula: A major chord is built from the root, plus ___ semitones (major third), plus ___ more semitones (minor third)."
+                correctAnswer: "4, 3"
+                feedback:
+                  correct: "Correct — 4 semitones for the major third, then 3 more for the minor third. Root plus 4 plus 3."
+                  partial: "Almost — root plus 4 semitones (major third) plus 3 semitones (minor third). The minor chord reverses these: root plus 3 plus 4."
+                  incorrect: "A major chord: root plus 4 semitones (major third) plus 3 semitones (minor third) = 0–4–7 from the root. A minor chord reverses the thirds: root plus 3 plus 4."
+                tags:
+                  - chord-types
+                  - intervals
+                  - major-chord
+
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+
+          # -------------------------------------------------------------------
+          # Elaborative Interrogation
+          # -------------------------------------------------------------------
+          - id: ana-elaborate
+            type: activity
+            title: "The Deeper Why"
+            content: |
+              The I–V–vi–IV progression appears in songs by Bach, the Beatles, and Beyonce. These composers lived in completely different worlds, with different instruments, audiences, and intentions.
+
+              Why does the same four-chord sequence keep reappearing?
+
+              Consider: what makes V to I feel like resolution? What does the minor vi add that I and IV cannot provide alone? Is this cultural learning, or something more fundamental?
+            duration: 60
+            interactions:
+              - id: elab-why
+                type: free_text
+                prompt: "Why do you think the I–V–vi–IV progression works across so many styles and centuries? What does it give listeners that other progressions might not?"
+                modelAnswer: |
+                  The I–V–vi–IV progression creates a complete emotional arc within a short cycle. The V chord creates tension through dominant resolution (a fundamental feature of tonal harmony based on the physics of the overtone series, not cultural convention). The vi chord introduces emotional depth — sadness or reflection — without abandoning the harmonic home. The IV broadens the sound without creating urgency. The return to I provides relief. Together, the four chords enact a compressed narrative: security, tension, feeling, resolution. This mirrors a pattern found in storytelling across cultures. The progression may persist because it maps onto something universal in human emotional experience, not merely because of musical convention.
+                feedback:
+                  general: "Compare your thinking to this explanation. Did you arrive at the same core idea — that the progression mirrors a universal emotional arc?"
+                allowSkip: false
+                tags:
+                  - chord-progressions
+                  - deeper-understanding
+                  - elaboration
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: balanced
+
+      # =========================================================================
+      # RETURN STAGE (RH-Primary)
+      # Reflective, open, flexible — reintegrate and create
+      # =========================================================================
+      return:
+        stage: return
+        name: The Return
+        description: Reconnect the analytical understanding back to the lived experience of music
+        estimatedDuration: 270
+
+        uiTheme:
+          colorPalette: reflective_open
+          typography: serif_narrative
+          layout: open
+          timing: flexible
+
+        transition:
+          type: gentle
+          duration: 0
+          bridgeText: ''
+          hapticCue: none
+
+        contentItems:
+
+          - id: ret-reconnect
+            type: narrative
+            title: "The Living Whole"
+            content: |
+              You now understand something that most people who love music have never articulated: why those four chords work.
+
+              The V chord creates urgency through a tritone that wants to resolve. The vi chord darkens the palette by sharing notes with home but lowering the third. The IV chord opens space before the return. The I chord is relief, arrival, home.
+
+              This is not theory. This is the structure of felt experience — the reason a chord change can make you gasp, or weep, or feel the world expand.
+
+              Go back to the song you thought of at the beginning. Listen to it now. You are the same person — but you are hearing with different ears.
+            duration: 90
+            layout: card
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          - id: ret-reflect
+            type: reflection_prompt
+            title: "What Changed?"
+            content: |
+              You started this module by feeling music. Now you understand part of its structure. Has understanding changed the feeling — or deepened it?
+            duration: 70
+            interactions:
+              - id: refl-changed
+                type: reflection
+                prompt: "Did learning the mechanics of chord progressions change how you hear music? Did anything surprise you?"
+                allowSkip: false
+                feedback:
+                  general: "The best learning changes not just what we know, but how we perceive the world."
+                tags:
+                  - metacognition
+                  - reflection
+
+              - id: refl-confidence
+                type: self_assessment
+                prompt: "How well do you feel you understand chord progressions and their emotional function now?"
+                options:
+                  - id: conf-1
+                    text: I could explain this to a friend clearly
+                    isCorrect: true
+                  - id: conf-2
+                    text: I understand it but need more listening practice
+                    isCorrect: true
+                  - id: conf-3
+                    text: I am still unclear on parts of it
+                    isCorrect: true
+                  - id: conf-4
+                    text: I need to revisit the Analysis stage
+                    isCorrect: true
+                feedback:
+                  general: "Your self-awareness is as important as the content itself. If unsure, return to the Analysis stage — especially the retrieval practice."
+                allowSkip: false
+                tags:
+                  - metacognition
+                  - self-assessment
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+          - id: ret-transfer
+            type: activity
+            title: "Transfer Challenge"
+            content: |
+              Harmony is not only a musical phenomenon.
+            duration: 80
+            interactions:
+              - id: trans-1
+                type: transfer_challenge
+                prompt: |
+                  In film scoring, composers often use a technique called Mickey Mousing — matching the music precisely to on-screen action. But the most emotionally powerful film scores often do the opposite: they play a gentle, consonant theme against horrifying imagery, or a tense, dissonant progression against a quiet scene.
+
+                  Based on what you've learned about consonance, dissonance, and the emotional function of chord progressions, why might contrast between music and image be more emotionally powerful than alignment?
+                modelAnswer: |
+                  When music aligns exactly with the emotion of an image, it confirms the viewer's expectation — there is no gap for the viewer to fill in. When music contrasts with the image, the viewer's brain must hold two conflicting emotional signals simultaneously. This gap creates a kind of cognitive tension that intensifies the emotional response — much like how a tense harmonic progression intensifies the listener's desire for resolution. The dissonance between what is seen and what is heard can be more disturbing than either alone, because the viewer's emotional processing must work harder. The harmonic principle of tension-and-release maps onto the cinematic principle of contrast-and-convergence.
+                feedback:
+                  general: "The principle of tension-and-release that drives harmony also drives narrative, visual composition, and emotional contrast across art forms."
+                allowSkip: false
+                tags:
+                  - transfer
+                  - cross-domain
+                  - film-music
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          - id: ret-create
+            type: activity
+            title: "Create Your Progression"
+            content: |
+              Now compose. You have all the vocabulary you need.
+            duration: 120
+            interactions:
+              - id: create-progression
+                type: creative_synthesis
+                prompt: |
+                  Using the interactive chord builder below, create a four-chord progression that tells a specific emotional story. It does not have to be I–V–vi–IV — experiment.
+
+                  After you build it, write 2–3 sentences describing the emotional arc you intended: where does it start, what tension or shadow does it create, and where does it resolve (or not)?
+                media:
+                  type: interactive
+                  url: /assets/interactive/music-harmony/chord-builder.html
+                  alt: Interactive chord progression builder with playback — select chords from a palette and hear them in sequence
+                feedback:
+                  general: "Every chord progression is a miniature emotional narrative. You just wrote one."
+                allowSkip: false
+                tags:
+                  - creative
+                  - composition
+                  - application
+                  - chord-progressions
+            layout: card
+            emotionalTone: celebration
+            metadata:
+              hemisphere: RH
+
+    # =========================================================================
+    # Knowledge Graph
+    # =========================================================================
+    knowledgeGraph:
+      nodes:
+        - id: chord-progressions
+          label: Chord Progressions
+          type: concept
+        - id: i-v-vi-iv
+          label: I–V–vi–IV Progression
+          type: concept
+        - id: consonance
+          label: Consonance
+          type: concept
+        - id: dissonance
+          label: Dissonance
+          type: concept
+        - id: tension-release
+          label: Tension and Release
+          type: concept
+        - id: dominant-resolution
+          label: Dominant Resolution
+          type: concept
+        - id: major-chord
+          label: Major Chord
+          type: concept
+        - id: minor-chord
+          label: Minor Chord
+          type: concept
+        - id: dominant-seventh
+          label: Dominant Seventh Chord
+          type: concept
+        - id: intervals
+          label: Intervals
+          type: concept
+        - id: tritone
+          label: Tritone
+          type: fact
+        - id: emotional-response
+          label: Emotional Response to Harmony
+          type: relationship
+
+      edges:
+        - from: chord-progressions
+          to: i-v-vi-iv
+          relationship: example_of
+        - from: i-v-vi-iv
+          to: major-chord
+          relationship: part_of
+        - from: i-v-vi-iv
+          to: minor-chord
+          relationship: part_of
+        - from: chord-progressions
+          to: tension-release
+          relationship: related
+        - from: tension-release
+          to: consonance
+          relationship: part_of
+        - from: tension-release
+          to: dissonance
+          relationship: part_of
+        - from: dominant-resolution
+          to: tension-release
+          relationship: example_of
+        - from: dominant-resolution
+          to: tritone
+          relationship: related
+        - from: tritone
+          to: dissonance
+          relationship: example_of
+        - from: major-chord
+          to: intervals
+          relationship: prerequisite
+        - from: minor-chord
+          to: intervals
+          relationship: prerequisite
+        - from: dominant-seventh
+          to: dominant-resolution
+          relationship: related
+        - from: consonance
+          to: emotional-response
+          relationship: related
+        - from: dissonance
+          to: emotional-response
+          relationship: related
+        - from: chord-progressions
+          to: emotional-response
+          relationship: related
+
+    # =========================================================================
+    # Assessments
+    # =========================================================================
+    assessments:
+      - id: formative-encounter
+        type: formative
+        timing: during
+        interactions:
+          - id: form-check-1
+            type: self_assessment
+            prompt: "Before the Analysis stage: how familiar are you with chord progressions?"
+            options:
+              - id: fam-1
+                text: "I've never thought about chord progressions before"
+                isCorrect: true
+              - id: fam-2
+                text: "I've heard the term but couldn't explain it"
+                isCorrect: true
+              - id: fam-3
+                text: "I have a basic understanding"
+                isCorrect: true
+              - id: fam-4
+                text: "I already know this material well"
+                isCorrect: true
+            tags:
+              - self-assessment
+              - formative
+              - prior-knowledge
+
+      - id: summative-analysis
+        type: summative
+        timing: after
+        interactions:
+          - id: summ-1
+            type: audio_recognition
+            prompt: "Identify the chord type you hear."
+            media:
+              type: audio
+              url: /assets/audio/music-harmony/assessment-dom7.mp3
+              alt: G dominant seventh chord played on piano
+            options:
+              - id: summ-opt-major
+                text: Major
+                isCorrect: false
+              - id: summ-opt-minor
+                text: Minor
+                isCorrect: false
+              - id: summ-opt-dom7
+                text: Dominant Seventh
+                isCorrect: true
+            correctAnswer: summ-opt-dom7
+            tags:
+              - summative
+              - chord-types
+              - dominant-seventh
+
+          - id: summ-2
+            type: multiple_choice
+            prompt: "Which move in the I–V–vi–IV progression creates the strongest pull toward resolution?"
+            options:
+              - id: summ2-opt-a
+                text: "I to V"
+                isCorrect: false
+              - id: summ2-opt-b
+                text: "V to vi"
+                isCorrect: false
+              - id: summ2-opt-c
+                text: "vi to IV"
+                isCorrect: false
+              - id: summ2-opt-d
+                text: "V to I (at the cycle's return)"
+                isCorrect: true
+            correctAnswer: summ2-opt-d
+            feedback:
+              correct: "Correct — dominant resolution (V to I) is the strongest harmonic gesture in tonal music. The tritone in the V chord resolves into the consonance of I."
+              incorrect: "The strongest pull in the progression is V to I — dominant resolution. The tritone within the V chord (or V7) demands resolution into the stability of I."
+            tags:
+              - summative
+              - dominant-resolution
+              - chord-progressions
+
+      - id: transfer-delayed
+        type: transfer
+        timing: delayed
+        interactions:
+          - id: trans-delayed-1
+            type: transfer_challenge
+            prompt: |
+              A week from now, listen actively to a song you encounter in your daily life. Try to identify whether it uses the I–V–vi–IV progression (or a variant). Notice where the tension builds and where it releases. Write a brief note on what you observe.
+            tags:
+              - transfer
+              - delayed-assessment
+              - chord-progressions
