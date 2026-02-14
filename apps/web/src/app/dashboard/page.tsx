@@ -280,6 +280,25 @@ export default function DashboardPage() {
           />
         </section>
 
+        {/* Preview shortcut — visible when no API is available */}
+        {topics.length === 0 && !topicsLoading && (
+          <div className="rounded-element border border-dashed border-accent-primary/40 p-4 text-center">
+            <p className="text-text-secondary text-sm mb-3">No API connected — preview the learning flow directly:</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {['Music Harmony', 'Supply and Demand'].map((title) => (
+                <Button
+                  key={title}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => router.push(`/session/new?topicId=${encodeURIComponent(title)}`)}
+                >
+                  Preview: {title}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recent sessions */}
         <section aria-labelledby="recent-sessions-heading">
           <h2 id="recent-sessions-heading" className="sr-only">

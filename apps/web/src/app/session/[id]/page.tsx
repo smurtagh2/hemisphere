@@ -171,18 +171,26 @@ export default function SessionPage() {
   // Accumulate accuracy across stages for the completion call
   const accuracyRef = useRef<number>(1);
 
-  // Guard: redirect to /login if no token
-  useEffect(() => {
-    if (!getToken()) {
-      router.replace('/login');
-    }
-  }, [router]);
-
   // Bootstrap the session
   useEffect(() => {
     let cancelled = false;
 
     async function bootstrap() {
+      // Demo mode: no token → use stub session so the UI can be previewed
+      if (!getToken()) {
+        const stub: SessionRecord = {
+          id: 'demo',
+          topicId: topicId || 'demo-topic',
+          topicTitle: topicId ? topicId.replace(/-/g, ' ') : 'Demo Topic',
+          startedAt: new Date().toISOString(),
+          completedAt: null,
+          accuracy: null,
+          itemCount: 0,
+        };
+        if (!cancelled) { setSession(stub); setStage('encounter'); }
+        return;
+      }
+
       try {
         let rec: SessionRecord;
 
@@ -193,7 +201,6 @@ export default function SessionPage() {
             return;
           }
           rec = await startSession({ topicId });
-          // Update URL to the real session ID without adding a history entry
           window.history.replaceState(null, '', `/session/${rec.id}`);
         } else {
           rec = await getSession(rawId);

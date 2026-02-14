@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import '@/styles/globals.css';
-import { AuthGuard } from '@/components/AuthGuard';
+// import { AuthGuard } from '@/components/AuthGuard'; // disabled for local preview
 
 export const metadata: Metadata = {
   title: 'Hemisphere Learning',
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body data-stage="encounter" data-theme="dark">
-        <AuthGuard>{children}</AuthGuard>
+        {children}
       </body>
     </html>
   );
