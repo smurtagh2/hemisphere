@@ -11,7 +11,7 @@ import {
   getStageBalanceForLoop,
   planAdaptiveSession,
   resolveSessionLoopType,
-  scheduleReview,
+  scheduleHemisphereAwareReview,
   createNewCard,
   DEFAULT_FSRS_WEIGHTS,
   type AdaptiveDifficultyLevel,
@@ -1387,6 +1387,8 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
     let existingStates: Array<{
       userId: string;
       itemId: string;
+      kcId: string;
+      stageType: string;
       stability: number;
       difficulty: number;
       retrievability: number;
@@ -1401,6 +1403,8 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
         .select({
           userId: schema.fsrsMemoryState.userId,
           itemId: schema.fsrsMemoryState.itemId,
+          kcId: schema.fsrsMemoryState.kcId,
+          stageType: schema.fsrsMemoryState.stageType,
           stability: schema.fsrsMemoryState.stability,
           difficulty: schema.fsrsMemoryState.difficulty,
           retrievability: schema.fsrsMemoryState.retrievability,
@@ -1444,8 +1448,42 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
       }
     }
 
+    const returnKcIds = [...itemMetaMap.values()]
+      .filter((meta) => meta.stage === 'return' && meta.kcId !== null)
+      .map((meta) => meta.kcId as string);
+
+    const existingReturnStateRows = returnKcIds.length
+      ? await db
+          .select({
+            userId: schema.fsrsMemoryState.userId,
+            itemId: schema.fsrsMemoryState.itemId,
+            kcId: schema.fsrsMemoryState.kcId,
+            stageType: schema.fsrsMemoryState.stageType,
+            stability: schema.fsrsMemoryState.stability,
+            difficulty: schema.fsrsMemoryState.difficulty,
+            retrievability: schema.fsrsMemoryState.retrievability,
+            state: schema.fsrsMemoryState.state,
+            lastReview: schema.fsrsMemoryState.lastReview,
+            reviewCount: schema.fsrsMemoryState.reviewCount,
+            lapseCount: schema.fsrsMemoryState.lapseCount,
+          })
+          .from(schema.fsrsMemoryState)
+          .where(
+            and(
+              eq(schema.fsrsMemoryState.userId, user.id),
+              eq(schema.fsrsMemoryState.stageType, 'return'),
+              sql`${schema.fsrsMemoryState.kcId} = ANY(${returnKcIds}::uuid[])`
+            )
+          )
+      : [];
+
+    const existingReturnStateByKc = new Map(
+      existingReturnStateRows.map((s) => [s.kcId, s])
+    );
+
     // Upsert fsrs_memory_state for each item in the session
     let fsrsRowsUpdated = 0;
+    const processedReturnKcs = new Set<string>();
     for (const [itemId, itemInfo] of itemMap.entries()) {
       const meta = itemMetaMap.get(itemId);
       const stageType = meta?.stage ?? itemInfo.stage;
@@ -1455,7 +1493,15 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
       // because the schema requires kcId)
       if (!kcId) continue;
 
-      const existing = existingStateMap.get(itemId);
+      // Return scheduling is concept-level: schedule once per KC, not per prompt.
+      if (stageType === 'return' && processedReturnKcs.has(kcId)) {
+        continue;
+      }
+
+      const conceptReturnState =
+        stageType === 'return' ? existingReturnStateByKc.get(kcId) : undefined;
+      const memoryItemId = conceptReturnState?.itemId ?? itemId;
+      const existing = conceptReturnState ?? existingStateMap.get(itemId);
       const rating = scoreToFsrsRating(itemInfo.score);
 
       // Build the FsrsCard from existing state, or a new card if first review
@@ -1471,7 +1517,19 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
           }
         : createNewCard();
 
-      const result = scheduleReview(card, rating, now, fsrsWeights, targetRetention);
+      const result = scheduleHemisphereAwareReview(
+        card,
+        rating,
+        now,
+        fsrsWeights,
+        targetRetention,
+        {
+          stageType:
+            stageType === 'encounter' || stageType === 'analysis' || stageType === 'return'
+              ? stageType
+              : 'analysis',
+        }
+      );
 
       const newReviewCount = (existing?.reviewCount ?? 0) + 1;
       const newLapseCount = (existing?.lapseCount ?? 0) + (rating === 1 ? 1 : 0);
@@ -1480,7 +1538,7 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
         .insert(schema.fsrsMemoryState)
         .values({
           userId: user.id,
-          itemId,
+          itemId: memoryItemId,
           kcId,
           stability: result.stability,
           difficulty: result.difficulty,
@@ -1509,6 +1567,9 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
           },
         });
 
+      if (stageType === 'return') {
+        processedReturnKcs.add(kcId);
+      }
       fsrsRowsUpdated += 1;
     }
 

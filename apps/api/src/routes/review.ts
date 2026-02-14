@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db, schema } from '@hemisphere/db';
 import { eq, and, sql } from 'drizzle-orm';
 import {
-  scheduleReview,
+  scheduleHemisphereAwareReview,
   applyScheduleResult,
   getCurrentRetrievability,
   isCardDue,
@@ -239,7 +239,21 @@ reviewRoutes.post('/schedule', authMiddleware, async (c) => {
 
     // ── 5. Run the FSRS scheduling algorithm ─────────────────────────────────
     const fsrsRating = rating as FsrsRating;
-    const result = scheduleReview(card, fsrsRating, now, weights, targetRetention);
+    const result = scheduleHemisphereAwareReview(
+      card,
+      fsrsRating,
+      now,
+      weights,
+      targetRetention,
+      {
+        stageType:
+          memState.stageType === 'encounter' ||
+          memState.stageType === 'analysis' ||
+          memState.stageType === 'return'
+            ? memState.stageType
+            : 'analysis',
+      }
+    );
     const updatedCard = applyScheduleResult(card, result, fsrsRating, now);
 
     // ── 6. Persist the updated memory state ──────────────────────────────────

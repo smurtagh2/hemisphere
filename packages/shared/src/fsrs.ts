@@ -57,6 +57,12 @@ export interface FsrsScheduleResult {
   state: FsrsCardState;
 }
 
+export type FsrsStageType = 'encounter' | 'analysis' | 'return';
+
+export interface HemisphereFsrsOptions {
+  stageType?: FsrsStageType;
+}
+
 /**
  * FSRS-5 algorithm weights (19 parameters, w0..w18)
  * These are the default values from the FSRS-5 paper
@@ -112,6 +118,9 @@ const DIFFICULTY_MAX = 10;
  * Minimum interval in days
  */
 const MIN_INTERVAL_DAYS = 1;
+const ENCOUNTER_INITIAL_STABILITY_BONUS = 1.3;
+const RETURN_TARGET_RETENTION = 0.85;
+const RETURN_STABILITY_BONUS = 1.5;
 
 // ============================================================================
 // Core FSRS-5 Math
@@ -333,6 +342,61 @@ export function scheduleReview(
     difficulty: newDifficulty,
     retrievability,
     state: newState,
+  };
+}
+
+/**
+ * Hemisphere-aware scheduling wrapper around base FSRS.
+ *
+ * Extensions:
+ * - Encounter new-card reviews: +30% initial stability
+ * - Return reviews: lower target retention (0.85) for longer spacing
+ * - Return high-quality recalls (rating >= Good): +50% stability bonus
+ */
+export function scheduleHemisphereAwareReview(
+  card: FsrsCard,
+  rating: FsrsRating,
+  now: Date = new Date(),
+  weights: FsrsWeights = DEFAULT_FSRS_WEIGHTS,
+  targetRetention: number = DEFAULT_TARGET_RETENTION,
+  options: HemisphereFsrsOptions = {}
+): FsrsScheduleResult {
+  const stageType = options.stageType ?? 'analysis';
+  const stageTargetRetention =
+    stageType === 'return'
+      ? Math.min(targetRetention, RETURN_TARGET_RETENTION)
+      : targetRetention;
+
+  const base = scheduleReview(card, rating, now, weights, stageTargetRetention);
+
+  let adjustedStability = base.stability;
+
+  if (stageType === 'encounter' && card.state === 'new') {
+    adjustedStability = Math.max(
+      MIN_INTERVAL_DAYS,
+      base.stability * ENCOUNTER_INITIAL_STABILITY_BONUS
+    );
+  }
+
+  if (stageType === 'return' && rating >= 3) {
+    adjustedStability = Math.max(
+      MIN_INTERVAL_DAYS,
+      adjustedStability * RETURN_STABILITY_BONUS
+    );
+  }
+
+  if (Math.abs(adjustedStability - base.stability) < 1e-9) {
+    return base;
+  }
+
+  const adjustedInterval = nextInterval(adjustedStability, stageTargetRetention);
+  const adjustedNextDue = new Date(now.getTime() + adjustedInterval * 24 * 60 * 60 * 1000);
+
+  return {
+    ...base,
+    stability: adjustedStability,
+    interval: adjustedInterval,
+    nextDue: adjustedNextDue,
   };
 }
 

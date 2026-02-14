@@ -15,6 +15,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createNewCard,
   scheduleReview,
+  scheduleHemisphereAwareReview,
   applyScheduleResult,
   calculateRetrievability,
   getCurrentRetrievability,
@@ -519,5 +520,48 @@ describe('Full review cycle integration', () => {
     const result = scheduleReview(card, 3, BASE_DATE, customWeights);
     expect(result.stability).toBeGreaterThan(0);
     expect(result.interval).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('scheduleHemisphereAwareReview', () => {
+  it('applies Encounter initial-stability bonus for new cards', () => {
+    const card = createNewCard();
+    const base = scheduleReview(card, 3, BASE_DATE);
+    const encounter = scheduleHemisphereAwareReview(
+      card,
+      3,
+      BASE_DATE,
+      DEFAULT_FSRS_WEIGHTS,
+      DEFAULT_TARGET_RETENTION,
+      { stageType: 'encounter' }
+    );
+
+    expect(encounter.stability).toBeCloseTo(base.stability * 1.3, 6);
+    expect(encounter.interval).toBeGreaterThanOrEqual(base.interval);
+  });
+
+  it('applies Return durability behaviour (0.85 target + quality multiplier)', () => {
+    const card: FsrsCard = {
+      stability: 8,
+      difficulty: 5,
+      retrievability: 0.9,
+      state: 'review',
+      lastReview: daysFromNow(-5, BASE_DATE),
+      reviewCount: 4,
+      lapseCount: 0,
+    };
+
+    const base = scheduleReview(card, 3, BASE_DATE, DEFAULT_FSRS_WEIGHTS, DEFAULT_TARGET_RETENTION);
+    const ret = scheduleHemisphereAwareReview(
+      card,
+      3,
+      BASE_DATE,
+      DEFAULT_FSRS_WEIGHTS,
+      DEFAULT_TARGET_RETENTION,
+      { stageType: 'return' }
+    );
+
+    expect(ret.stability).toBeGreaterThan(base.stability);
+    expect(ret.interval).toBeGreaterThan(base.interval);
   });
 });
