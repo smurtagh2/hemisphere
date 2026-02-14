@@ -1,0 +1,659 @@
+# Topic: The Invisible Hand at Work - Supply and Demand
+# Template: Systems/Analytical
+# Full 3-stage MVP content module for Hemisphere
+
+schemaVersion: '1.0'
+
+topics:
+  - id: supply-and-demand
+    version: 1.0.0
+
+    metadata:
+      title: The Invisible Hand at Work
+      subtitle: How supply and demand shape every price you pay
+      summary: Discover how two simple forces—what people want and what's available—silently coordinate the decisions of millions of strangers into the prices, quantities, and shortages we experience every day.
+      subject: economics
+      template: systems_analytical
+      targetAudience: general
+      estimatedDuration: 18
+      prerequisites: []
+      tags:
+        - economics
+        - supply
+        - demand
+        - price
+        - markets
+        - equilibrium
+        - microeconomics
+      authors:
+        - name: Hemisphere Content Team
+          role: author
+      createdAt: '2026-02-14T00:00:00Z'
+      updatedAt: '2026-02-14T00:00:00Z'
+
+    learningObjectives:
+      - id: obj-1
+        objective: Explain why demand curves slope downward and supply curves slope upward
+        bloom: understand
+      - id: obj-2
+        objective: Predict how a shift in supply or demand changes equilibrium price and quantity
+        bloom: analyze
+      - id: obj-3
+        objective: Distinguish between a movement along a curve and a shift of the curve
+        bloom: analyze
+      - id: obj-4
+        objective: Apply the supply-and-demand model to explain real-world price changes
+        bloom: apply
+
+    knowledgeComponents:
+      - id: kc-demand
+        label: Law of Demand
+        description: As price rises, quantity demanded falls (and vice versa), all else equal.
+      - id: kc-supply
+        label: Law of Supply
+        description: As price rises, quantity supplied rises (and vice versa), all else equal.
+      - id: kc-equilibrium
+        label: Market Equilibrium
+        description: The price at which quantity supplied equals quantity demanded; the market "clears."
+
+    stages:
+      # =========================================================
+      # ENCOUNTER STAGE (RH-Primary)
+      # =========================================================
+      encounter:
+        stage: encounter
+        name: The Encounter
+        description: Feel the force of supply and demand before we name it
+        estimatedDuration: 270
+
+        uiTheme:
+          colorPalette: warm_immersive
+          typography: serif_narrative
+          layout: expansive
+          timing: untimed
+
+        transition:
+          type: crossfade
+          duration: 1.5
+          bridgeText: Now let's look at the mechanism behind what you just felt.
+          hapticCue: pulse
+
+        contentItems:
+          # ---- Hook ----
+          - id: enc-hook
+            type: narrative
+            title: The Hook
+            content: |
+              It's the morning after a hurricane hits Florida.
+
+              You drive to the hardware store. The plywood is gone. So is the bottled water. The generator that costs $500 on a normal day has a handwritten price tag: $1,200.
+
+              You feel it in your stomach—outrage, maybe. That's price gouging.
+
+              Or is it?
+            duration: 45
+            media:
+              - type: image
+                url: /assets/images/empty-hardware-store-shelves.jpg
+                alt: Empty shelves in a hardware store after a natural disaster, price tags visible
+                artistNotes: Wide-angle shot of a hardware store interior with bare shelves. Dramatic but not exploitative. Warm incandescent lighting emphasizes the emptiness. A few scattered items remain. Price tags visible but not legible. The mood is urgent and slightly unsettling—the absence of goods is the story.
+            layout: full_bleed
+            emotionalTone: tension
+            metadata:
+              hemisphere: RH
+              difficulty: novice
+
+          # ---- Narrative Frame ----
+          - id: enc-narrative
+            type: narrative
+            title: Two Forces Running the World
+            content: |
+              ## The Most Powerful Invisible Force You've Never Seen
+
+              Every morning, millions of farmers in a dozen countries decide how much coffee to grow. Every morning, billions of people decide whether to brew a cup. Nobody coordinates these decisions. No government office sets the price. No single company is in charge.
+
+              And yet—every morning, the right amount of coffee appears at roughly the right price in stores around the world.
+
+              Adam Smith called this the "invisible hand" in 1776. He meant that individuals pursuing their own interests—farmers trying to earn more, consumers trying to pay less—are guided as if by an invisible hand to produce outcomes that benefit everyone.
+
+              The mechanism behind the invisible hand has two moving parts: **supply** and **demand**. Together they answer the most fundamental question in all of economics:
+
+              *Who gets what, at what price?*
+
+              Understanding this mechanism won't just help you in economics class. It will change how you read the news, why you see certain products disappear from shelves, why rents rise in some neighborhoods and fall in others, and yes—why that post-hurricane generator costs $1,200.
+            duration: 90
+            media:
+              - type: image
+                url: /assets/images/coffee-farmers-field.jpg
+                alt: Coffee farmers harvesting beans on a hillside at dawn, mist in the valleys below
+                artistNotes: Painterly scene of coffee farmers on terraced hillsides. Dawn light, mist. Warm golds and greens. Figures are small against the landscape—conveying the individual as part of a vast, uncoordinated system. Style should echo the harmony-intervals module—painterly, warm, evocative.
+              - type: image
+                url: /assets/images/city-coffee-shop-morning.jpg
+                alt: A busy city coffee shop at morning rush hour, long queue of customers
+                artistNotes: City coffee shop interior. Long queue. Morning light. Many different kinds of people. Energy and movement. Same painterly style—a visual counterpart to the farmers scene, showing the demand side of the same invisible hand.
+            interactions:
+              - id: enc-predict
+                type: prediction
+                prompt: |
+                  Before we dig into the mechanism—back to that $1,200 generator.
+
+                  Is the price gouger being greedy and immoral? Or is something else going on? What do you think?
+                feedback:
+                  general: Your instinct here matters. By the end of this module, you'll have a precise framework for thinking through exactly this question—and you may be surprised where you land.
+                allowSkip: true
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          # ---- Spatial Overview ----
+          - id: enc-overview
+            type: spatial_map
+            title: The Landscape of Supply and Demand
+            content: |
+              Here is the territory we are about to explore. Supply and demand sits at the heart of economics—the foundation everything else is built on.
+            duration: 45
+            media:
+              - type: interactive
+                url: /assets/interactive/supply-demand-concept-map.json
+                alt: Interactive concept map with Supply and Demand at the center, connected to Price, Quantity, Equilibrium, Shifts, and Elasticity
+                caption: Tap any node to preview what you will learn
+            layout: spatial
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          # ---- Emotional Anchor ----
+          - id: enc-anchor
+            type: reflection_prompt
+            title: Your Price Memory
+            content: |
+              Think of a time a price surprised you—something that cost far more or far less than you expected. A concert ticket. A flight. A used car during the pandemic. Groceries after a storm.
+
+              By the end of this module, you will be able to explain exactly why that happened—using two curves on a graph.
+            duration: 60
+            interactions:
+              - id: enc-personal
+                type: free_text
+                prompt: What price surprised you recently, and what do you think caused it? (This is for your private learning journal.)
+                allowSkip: true
+                feedback:
+                  general: Hold onto that example. We will return to it.
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+      # =========================================================
+      # ANALYSIS STAGE (LH-Primary)
+      # =========================================================
+      analysis:
+        stage: analysis
+        name: The Analysis
+        description: Map the mechanics of supply and demand with precision
+        estimatedDuration: 450
+
+        uiTheme:
+          colorPalette: cool_focused
+          typography: sans_structured
+          layout: grid
+          timing: paced
+
+        transition:
+          type: shift
+          duration: 2
+          bridgeText: Now let's bring this understanding back to the world and your own experience.
+          hapticCue: none
+
+        contentItems:
+          # ---- Concept Card 1: Demand ----
+          - id: ana-demand
+            type: concept_card
+            title: The Demand Curve
+            content: |
+              # The Law of Demand
+
+              **Demand** is the relationship between price and how much of something buyers want to purchase.
+
+              The **Law of Demand** states: as price rises, quantity demanded falls; as price falls, quantity demanded rises. *All else equal.*
+
+              Why? Two reasons:
+              1. **Substitution effect** — when coffee gets expensive, some people switch to tea.
+              2. **Income effect** — a higher price leaves you with less real purchasing power, so you buy less of everything.
+
+              On a graph, the demand curve slopes **downward** from left to right.
+
+              | Price (per unit) | Quantity Demanded |
+              |------------------|-------------------|
+              | $1               | 500 units/day     |
+              | $2               | 350 units/day     |
+              | $3               | 200 units/day     |
+              | $4               | 100 units/day     |
+            duration: 120
+            media:
+              - type: image
+                url: /assets/images/demand-curve-diagram.svg
+                alt: A downward-sloping demand curve with Price on the vertical axis and Quantity on the horizontal axis
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+              knowledgeComponent: kc-demand
+
+          # ---- Concept Card 2: Supply ----
+          - id: ana-supply
+            type: concept_card
+            title: The Supply Curve
+            content: |
+              # The Law of Supply
+
+              **Supply** is the relationship between price and how much of something producers are willing and able to sell.
+
+              The **Law of Supply** states: as price rises, quantity supplied increases; as price falls, quantity supplied decreases. *All else equal.*
+
+              Why? Higher prices make production more profitable, so existing producers sell more and new producers enter the market.
+
+              On a graph, the supply curve slopes **upward** from left to right.
+
+              | Price (per unit) | Quantity Supplied |
+              |------------------|-------------------|
+              | $1               | 80 units/day      |
+              | $2               | 200 units/day     |
+              | $3               | 350 units/day     |
+              | $4               | 480 units/day     |
+            duration: 120
+            media:
+              - type: image
+                url: /assets/images/supply-curve-diagram.svg
+                alt: An upward-sloping supply curve with Price on the vertical axis and Quantity on the horizontal axis
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+              knowledgeComponent: kc-supply
+
+          # ---- Concept Card 3: Equilibrium ----
+          - id: ana-equilibrium
+            type: concept_card
+            title: Market Equilibrium
+            content: |
+              # Where Supply Meets Demand
+
+              **Equilibrium** is the price at which quantity supplied exactly equals quantity demanded. The market "clears"—nothing is left over and nobody is turned away empty-handed.
+
+              - If price is **above** equilibrium: quantity supplied > quantity demanded → **surplus** → prices fall.
+              - If price is **below** equilibrium: quantity demanded > quantity supplied → **shortage** → prices rise.
+
+              Markets are self-correcting. Surpluses push prices down; shortages push prices up. The market gravitates toward equilibrium like a pendulum finding its rest point.
+
+              The generator after the hurricane is **not** at equilibrium until the price rises high enough that supply equals demand.
+            duration: 120
+            media:
+              - type: image
+                url: /assets/images/supply-demand-equilibrium-diagram.svg
+                alt: Supply and demand curves crossing at the equilibrium point, with surplus and shortage regions labeled
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              knowledgeComponent: kc-equilibrium
+
+          # ---- Active Recall: What is demand? ----
+          - id: ana-recall-demand
+            type: practice
+            title: Active Recall — The Law of Demand
+            content: Test your recall of the demand concept
+            duration: 90
+            interactions:
+              - id: recall-demand-1
+                type: active_recall
+                activityType: active_recall
+                prompt: In your own words, state the Law of Demand. What happens to quantity demanded when price rises?
+                expectedAnswer: |
+                  When price rises, quantity demanded falls (and when price falls, quantity demanded rises), all else equal. This is because of the substitution effect (buyers switch to cheaper alternatives) and the income effect (higher prices reduce real purchasing power).
+                hint: Think about what you do when your favorite coffee shop raises prices by 50%.
+                knowledgeComponent: kc-demand
+
+          # ---- MCQ: Supply and Demand basics ----
+          - id: ana-mcq-1
+            type: practice
+            title: Multiple Choice — Supply and Demand
+            content: Test your understanding with targeted questions
+            duration: 120
+            interactions:
+              - id: mcq-slope
+                type: multiple_choice
+                activityType: multiple_choice
+                question: A coffee shop raises the price of lattes from $4 to $6. According to the Law of Demand, what should happen to the quantity of lattes sold per day?
+                context: Supply and Demand — Law of Demand
+                options:
+                  - id: opt-a
+                    label: Quantity sold will increase because higher prices signal higher quality.
+                    correct: false
+                    rationale: This confuses signaling effects (a separate concept) with the basic demand relationship. At higher prices, most consumers will buy fewer lattes, not more.
+                  - id: opt-b
+                    label: Quantity sold will decrease because some buyers will substitute cheaper alternatives or simply buy fewer lattes.
+                    correct: true
+                    rationale: Correct. The substitution effect (switching to drip coffee or tea) and the income effect (lattes now take a bigger share of your budget) both reduce quantity demanded.
+                  - id: opt-c
+                    label: Quantity sold will stay the same because regular customers are loyal.
+                    correct: false
+                    rationale: Customer loyalty can soften the demand response, but it does not override it. Even loyal customers reduce purchases at significantly higher prices. This describes inelastic demand, not zero elasticity.
+                  - id: opt-d
+                    label: Quantity sold will increase because the shop will earn more revenue and expand.
+                    correct: false
+                    rationale: This confuses what happens on the supply side (the shop earns more per unit) with what happens on the demand side (customers buy fewer units). Revenue may go up or down depending on elasticity, but quantity demanded falls.
+                explanation: The Law of Demand is straightforward here. A higher price means each unit costs more relative to alternatives. Some buyers will defect to cheaper substitutes; others will simply buy less. Quantity demanded falls.
+                knowledgeComponent: kc-demand
+
+              - id: mcq-shifts
+                type: multiple_choice
+                activityType: multiple_choice
+                question: A drought destroys 30% of Brazil's coffee crop. Holding demand constant, what happens to the equilibrium price and quantity of coffee?
+                context: Supply and Demand — Supply Shifts
+                options:
+                  - id: opt-a
+                    label: Price rises, quantity falls.
+                    correct: true
+                    rationale: Correct. The supply curve shifts left (less coffee at every price). At the old equilibrium price, there is now a shortage. Price is bid up until a new equilibrium is reached—at a higher price and lower quantity.
+                  - id: opt-b
+                    label: Price falls, quantity rises.
+                    correct: false
+                    rationale: This would be the result of a supply increase (right shift). A drought reduces supply—the opposite direction.
+                  - id: opt-c
+                    label: Price rises, quantity rises.
+                    correct: false
+                    rationale: When supply falls, the price rises (correct) but the quantity at the new equilibrium is lower, not higher. Moving up the demand curve means buyers purchase less at the higher price.
+                  - id: opt-d
+                    label: Price and quantity both stay the same; the market self-corrects immediately.
+                    correct: false
+                    rationale: Markets do self-correct, but to a new equilibrium—not the old one. The supply shock permanently reduces available coffee until new supply comes online.
+                explanation: A supply decrease (left shift of the supply curve) creates a shortage at the original price. The market clears at a higher price and lower quantity. This is exactly what happens to coffee prices after major crop failures in Brazil.
+                knowledgeComponent: kc-supply
+
+          # ---- Categorization: Demand Shifters vs Supply Shifters ----
+          - id: ana-categorization
+            type: practice
+            title: Categorization — What Shifts What?
+            content: Classify factors that shift demand or supply
+            duration: 120
+            interactions:
+              - id: cat-shifters
+                type: categorization
+                activityType: categorization
+                prompt: Sort each factor into the correct category. Does it shift the Demand curve, the Supply curve, or both?
+                context: Supply and Demand — Curve Shifters
+                categories:
+                  - id: demand-shift
+                    label: Shifts Demand
+                    description: Changes what buyers want to buy at every price
+                  - id: supply-shift
+                    label: Shifts Supply
+                    description: Changes what producers are willing to sell at every price
+                items:
+                  - id: item-income
+                    label: Consumer incomes rise
+                    categoryId: demand-shift
+                  - id: item-input-cost
+                    label: Cost of steel rises (for car manufacturers)
+                    categoryId: supply-shift
+                  - id: item-taste
+                    label: A health report says coffee reduces Alzheimer's risk
+                    categoryId: demand-shift
+                  - id: item-technology
+                    label: A new harvesting machine cuts coffee production costs by 40%
+                    categoryId: supply-shift
+                  - id: item-substitute
+                    label: The price of tea doubles
+                    categoryId: demand-shift
+                  - id: item-weather
+                    label: Perfect growing conditions produce a record wheat harvest
+                    categoryId: supply-shift
+                knowledgeComponent: kc-demand
+
+      # =========================================================
+      # RETURN STAGE (RH-Primary)
+      # =========================================================
+      return:
+        stage: return
+        name: The Return
+        description: Reintegrate the model and apply it to the world
+        estimatedDuration: 240
+
+        uiTheme:
+          colorPalette: reflective_open
+          typography: serif_narrative
+          layout: open
+          timing: flexible
+
+        transition:
+          type: gentle
+          duration: 0
+          bridgeText: ''
+          hapticCue: none
+
+        contentItems:
+          # ---- Reconnection to the Whole ----
+          - id: ret-reconnect
+            type: narrative
+            title: The Invisible Hand, Revealed
+            content: |
+              Let's return to that $1,200 generator.
+
+              Before the hurricane, supply and demand are roughly in balance. The equilibrium price is $500. Then the hurricane hits—and in a single hour, demand for generators surges (everyone needs one) while supply is temporarily fixed (the trucks can't get through). At the old price of $500, there is a massive shortage.
+
+              The price gouger raises the price to $1,200. This does two things simultaneously:
+
+              1. **It rations the existing supply.** At $1,200, only the buyers who need a generator most urgently—a hospital's backup power, a family with someone on a ventilator—can justify the price. The rest wait.
+
+              2. **It signals opportunity to suppliers.** A generator company in Atlanta sees the price and sends a truck convoy overnight, taking the risk of the journey. By morning, supply has increased. The price starts to fall.
+
+              The "price gouger" acted in pure self-interest. And yet, by doing so, he coordinated the emergency allocation of a scarce resource more effectively than any government office could have managed overnight.
+
+              This is what Adam Smith saw. This is the invisible hand.
+
+              Whether you find this beautiful or troubling is a different question—one that requires moving beyond the model into ethics and values. But the mechanism itself is real, and it is always running, silently, in every price you encounter.
+            duration: 90
+            layout: card
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          # ---- Reflection Prompt ----
+          - id: ret-reflect
+            type: reflection_prompt
+            title: What Changed?
+            content: |
+              You started this module with a gut reaction to a price you found surprising or unfair. Now you have a framework for understanding what is actually happening beneath the surface.
+            duration: 60
+            interactions:
+              - id: refl-1
+                type: reflection
+                prompt: |
+                  Go back to the price that surprised you at the beginning. Can you now explain it using supply and demand? What shifted? What was the market trying to do?
+                allowSkip: false
+                feedback:
+                  general: The model doesn't tell you whether prices are fair—that is a moral and political question. But it does tell you why prices move. That's the first step.
+                tags: [metacognition, transfer, reflection]
+
+              - id: refl-2
+                type: self_assessment
+                prompt: How well do you feel you understand the supply-and-demand model now?
+                options:
+                  - id: conf-1
+                    text: I could draw the curves and explain a price change to a friend
+                    isCorrect: true
+                  - id: conf-2
+                    text: I understand the concepts but the graphs still feel uncertain
+                    isCorrect: true
+                  - id: conf-3
+                    text: I'm still unclear on what shifts the curves
+                    isCorrect: true
+                  - id: conf-4
+                    text: I need to review the material
+                    isCorrect: true
+                feedback:
+                  general: Self-awareness is as important as content knowledge. If you need to review, revisit the Analysis stage.
+                allowSkip: false
+                tags: [metacognition, self-assessment]
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+          # ---- Transfer Challenge ----
+          - id: ret-transfer
+            type: activity
+            title: Transfer Challenge
+            content: |
+              Supply and demand isn't just economics. It's a general framework for understanding scarcity and allocation.
+            duration: 90
+            interactions:
+              - id: trans-1
+                type: transfer_challenge
+                prompt: |
+                  Consider the market for **human kidneys for transplant**. There is a chronic shortage in most countries—thousands of patients die each year waiting for a kidney that never comes.
+
+                  The economist's solution: allow people to be paid to donate a kidney. Critics say this is immoral—it exploits the poor.
+
+                  Using what you learned about supply, demand, and equilibrium, explain: (a) why there is a shortage, and (b) what the economic argument for a legal market would be. You do not need to take a side—just apply the model.
+                modelAnswer: |
+                  (a) There is a shortage because the price of kidneys is effectively zero (donations are unpaid in most countries). At a price of zero, quantity demanded (patients who need a kidney) far exceeds quantity supplied (people willing to donate). This is a textbook shortage: price is below equilibrium.
+
+                  (b) If a legal market were allowed, a positive price would shift the supply curve rightward (more people would be willing to supply a kidney at a price) and the market would reach a new equilibrium where quantity supplied equals quantity demanded—eliminating the shortage. This is the standard economic argument: allowing prices to function would save lives by clearing the market.
+
+                  The counterarguments involve equity (poor people may feel coerced to sell) and human dignity (should some things be outside the market?). These are valid but they are normative (value) arguments, not positive (descriptive) economics.
+                feedback:
+                  general: You just applied a basic microeconomic model to one of the most contested policy debates in bioethics. The model doesn't settle the debate—but it clarifies what the debate is actually about.
+                allowSkip: false
+                tags: [transfer, policy, ethics, market-design]
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+    # ---- Knowledge Graph ----
+    knowledgeGraph:
+      nodes:
+        - id: demand-curve
+          label: Demand Curve
+          type: concept
+        - id: supply-curve
+          label: Supply Curve
+          type: concept
+        - id: equilibrium
+          label: Market Equilibrium
+          type: concept
+        - id: surplus
+          label: Surplus
+          type: concept
+        - id: shortage
+          label: Shortage
+          type: concept
+        - id: demand-shifters
+          label: Demand Shifters
+          type: concept
+        - id: supply-shifters
+          label: Supply Shifters
+          type: concept
+        - id: invisible-hand
+          label: Invisible Hand
+          type: concept
+        - id: price-signal
+          label: Price as Signal
+          type: relationship
+        - id: substitution-effect
+          label: Substitution Effect
+          type: concept
+
+      edges:
+        - from: demand-curve
+          to: equilibrium
+          relationship: part_of
+        - from: supply-curve
+          to: equilibrium
+          relationship: part_of
+        - from: equilibrium
+          to: surplus
+          relationship: contrasts_with
+        - from: equilibrium
+          to: shortage
+          relationship: contrasts_with
+        - from: demand-shifters
+          to: demand-curve
+          relationship: affects
+        - from: supply-shifters
+          to: supply-curve
+          relationship: affects
+        - from: equilibrium
+          to: price-signal
+          relationship: related
+        - from: price-signal
+          to: invisible-hand
+          relationship: part_of
+        - from: substitution-effect
+          to: demand-curve
+          relationship: explains
+
+    # ---- Assessments ----
+    assessments:
+      - id: formative-1
+        type: formative
+        timing: during
+        interactions:
+          - id: form-check-1
+            type: self_assessment
+            prompt: After studying the demand and supply curves, how confident are you in predicting the direction of a price change when one curve shifts?
+            options:
+              - id: conf-1
+                text: '1 - Not confident at all'
+                isCorrect: true
+              - id: conf-2
+                text: '2 - A little unsure'
+                isCorrect: true
+              - id: conf-3
+                text: '3 - Moderately confident'
+                isCorrect: true
+              - id: conf-4
+                text: '4 - Quite confident'
+                isCorrect: true
+              - id: conf-5
+                text: '5 - Very confident'
+                isCorrect: true
+            tags: [self-assessment, formative]
+
+      - id: summative-1
+        type: summative
+        timing: after
+        interactions:
+          - id: summ-1
+            type: multiple_choice
+            prompt: During the COVID-19 pandemic, the price of used cars rose sharply while new car production fell. Which combination of curve shifts best explains this?
+            options:
+              - id: opt-a
+                text: Demand for used cars increased (right shift) AND supply of used cars decreased (left shift)
+                isCorrect: true
+              - id: opt-b
+                text: Demand for used cars decreased AND supply of used cars increased
+                isCorrect: false
+              - id: opt-c
+                text: Only the supply of used cars decreased
+                isCorrect: false
+              - id: opt-d
+                text: Only the demand for used cars increased
+                isCorrect: false
+            explanation: |
+              Both shifts occurred simultaneously. Demand shifted right because buyers who couldn't get new cars turned to the used market. Supply shifted left because rental companies (a major source of used cars) held onto their fleets during the pandemic. Both shifts push price upward, which is what we observed.
+            tags: [summative, shifts, real-world]
+
+      - id: transfer-1
+        type: transfer
+        timing: delayed
+        interactions:
+          - id: trans-assess
+            type: transfer_challenge
+            prompt: |
+              A week from now, you read that the price of avocados has tripled. Before you accept any media explanation, apply the supply-and-demand framework: What questions would you ask? What data would you look for to determine whether this was a demand shift, a supply shift, or both?
+            tags: [transfer, delayed-assessment, critical-thinking]

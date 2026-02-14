@@ -52,6 +52,8 @@ import {
 } from '../../../lib/store';
 import type { ResponseModality, UserResponse } from '../../../lib/store';
 
+import { telemetry } from '../../../lib/telemetry';
+
 import { AnalysisProgress } from './AnalysisProgress';
 
 // ---------------------------------------------------------------------------
@@ -323,7 +325,7 @@ export function AnalysisSession({
   contentByItemId,
   onStageComplete,
   onBack,
-  onTelemetry,
+  onTelemetry = telemetry.collect,
   className = '',
 }: AnalysisSessionProps) {
   // ---- Store selectors ----
