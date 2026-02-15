@@ -1,0 +1,98 @@
+# Production docker-compose for Hemisphere.
+# Run with: docker compose -f infrastructure/docker-compose.prod.yml up -d
+#
+# Required environment variables (set in a .env.prod file or export before running):
+#   DATABASE_URL, JWT_SECRET, GOOGLE_CLIENT_ID, APPLE_CLIENT_ID,
+#   GF_SECURITY_ADMIN_PASSWORD
+#
+# Ports exposed on the host:
+#   3000  — Next.js web app
+#   3001  — Hono API
+#   3003  — Grafana dashboard
+#   9090  — Prometheus (internal; remove or firewall in production)
+
+version: "3.9"
+
+networks:
+  hemisphere-net:
+    driver: bridge
+
+services:
+  # ── API ─────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      DATABASE_URL: "${DATABASE_URL}"
+      JWT_SECRET: "${JWT_SECRET}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      APPLE_CLIENT_ID: "${APPLE_CLIENT_ID}"
+      NODE_ENV: "production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - hemisphere-net
+
+  # ── Web ─────────────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://api:3001"
+      NODE_ENV: "production"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - hemisphere-net
+
+  # ── Prometheus ───────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    networks:
+      - hemisphere-net
+
+  # ── Grafana ──────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - hemisphere-net
+
+volumes:
+  prometheus-data:
+  grafana-data:

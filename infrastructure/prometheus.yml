@@ -1,0 +1,28 @@
+# Prometheus configuration for Hemisphere.
+# Scrapes the API's /metrics endpoint every 15 seconds.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    app: hemisphere
+    env: production
+
+# ── Alerting (placeholder — wire up Alertmanager here when ready) ─────────────
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# ── Scrape configs ────────────────────────────────────────────────────────────
+scrape_configs:
+  - job_name: hemisphere-api
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - 'api:3001'
+    # Labels added to every time-series scraped from this job.
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance

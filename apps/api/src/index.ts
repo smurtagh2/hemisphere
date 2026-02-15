@@ -7,13 +7,17 @@ import { reviewRoutes } from './routes/review.js';
 import { learnerRoutes } from './routes/learner.js';
 import { scoringRoutes } from './routes/scoring.js';
 import { adminRoutes } from './routes/admin.js';
+import { metricsRoutes } from './routes/metrics.js';
+import { experimentRoutes } from './routes/experiments.js';
 import { authMiddleware, requireRole, requireAuth, type AppEnv } from './middleware/auth.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
+import { metricsMiddleware } from './middleware/metricsMiddleware.js';
 
 const app = new Hono<AppEnv>();
 
-// ─── Security middleware ───────────────────────────────────────────────────────
+// ─── Global middleware ─────────────────────────────────────────────────────────
 app.use('*', securityHeaders);
+app.use('*', metricsMiddleware);
 
 // ─── Public routes ────────────────────────────────────────────────────────────
 
@@ -22,12 +26,14 @@ app.get('/', (c) => {
 });
 
 app.route('/health', healthRoutes);
+app.route('/metrics', metricsRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/session', sessionRoutes);
 app.route('/api/review', reviewRoutes);
 app.route('/api/learner', learnerRoutes);
 app.route('/api/scoring', scoringRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/api/experiments', experimentRoutes);
 
 // ─── Protected routes (authentication required) ───────────────────────────────
 

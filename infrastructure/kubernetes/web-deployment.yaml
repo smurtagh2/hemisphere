@@ -1,0 +1,75 @@
+# Kubernetes Deployment and Service for the Hemisphere Next.js web app.
+# Apply with: kubectl apply -f infrastructure/kubernetes/web-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hemisphere-web
+  labels:
+    app: hemisphere
+    component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hemisphere
+      component: web
+  template:
+    metadata:
+      labels:
+        app: hemisphere
+        component: web
+    spec:
+      containers:
+        - name: web
+          image: hemisphere/web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://hemisphere-api:3001"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hemisphere-web
+  labels:
+    app: hemisphere
+    component: web
+spec:
+  selector:
+    app: hemisphere
+    component: web
+  ports:
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: http
+  type: ClusterIP
