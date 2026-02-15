@@ -5,19 +5,20 @@ import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import { db, schema } from '@hemisphere/db';
 import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 export const authRoutes = new Hono();
 
 // Validation schemas
 const signupSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  displayName: z.string().min(1, 'Display name is required'),
+  email: z.string().email('Invalid email address').trim().max(255),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+  displayName: z.string().min(1, 'Display name is required').max(100).trim(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().email('Invalid email address').trim().max(255),
+  password: z.string().min(1, 'Password is required').max(128),
 });
 
 const refreshSchema = z.object({
@@ -50,7 +51,8 @@ const REFRESH_TOKEN_EXPIRATION_DAYS = 30; // 30 days
 
 // Helper function to generate access token
 async function generateAccessToken(userId: string, email: string, role: string) {
-  const token = await new SignJWT({ userId, email, role })
+  const jti = randomBytes(16).toString('hex');
+  const token = await new SignJWT({ userId, email, role, jti })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRATION)
@@ -83,7 +85,7 @@ async function createRefreshToken(userId: string): Promise<string> {
  * POST /api/auth/signup
  * Create a new user account
  */
-authRoutes.post('/signup', async (c) => {
+authRoutes.post('/signup', rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), async (c) => {
   try {
     // Parse and validate request body
     const body = await c.req.json();
@@ -178,7 +180,7 @@ authRoutes.post('/signup', async (c) => {
  * POST /api/auth/login
  * Authenticate user and return JWT token
  */
-authRoutes.post('/login', async (c) => {
+authRoutes.post('/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), async (c) => {
   try {
     // Parse and validate request body
     const body = await c.req.json();

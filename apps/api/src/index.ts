@@ -8,8 +8,12 @@ import { learnerRoutes } from './routes/learner.js';
 import { scoringRoutes } from './routes/scoring.js';
 import { adminRoutes } from './routes/admin.js';
 import { authMiddleware, requireRole, requireAuth, type AppEnv } from './middleware/auth.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
 
 const app = new Hono<AppEnv>();
+
+// ─── Security middleware ───────────────────────────────────────────────────────
+app.use('*', securityHeaders);
 
 // ─── Public routes ────────────────────────────────────────────────────────────
 
