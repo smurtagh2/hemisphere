@@ -335,29 +335,38 @@
 }
 
 /* =============================================================================
- * LIGHT MODE
- * Applied when [data-theme="light"] is present
+ * LIGHT THEME OVERRIDES
+ * Applied when data-theme="light" is set on <body> or a parent.
+ * Overrides the semantic aliases set by data-stage="..." selectors.
  * ========================================================================== */
 
-[data-theme="light"][data-stage="encounter"] {
-  --bg-primary: var(--encounter-bg-light);
-  --bg-secondary: var(--encounter-bg-light-secondary);
-  --text-primary: var(--encounter-text-primary-light);
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="light"][data-stage="encounter"],
+[data-theme="light"] [data-stage="encounter"] {
+  --bg-primary:     var(--encounter-bg-light);
+  --bg-secondary:   var(--encounter-bg-light-secondary);
+  --text-primary:   var(--encounter-text-primary-light);
   --text-secondary: var(--encounter-text-secondary-light);
+  /* accent tokens intentionally unchanged — they work on both themes */
 }
 
-[data-theme="light"][data-stage="analysis"] {
-  --bg-primary: var(--analysis-bg-light);
-  --bg-secondary: var(--analysis-bg-light-secondary);
-  --text-primary: var(--analysis-text-primary-light);
+[data-theme="light"][data-stage="analysis"],
+[data-theme="light"] [data-stage="analysis"] {
+  --bg-primary:     var(--analysis-bg-light);
+  --bg-secondary:   var(--analysis-bg-light-secondary);
+  --text-primary:   var(--analysis-text-primary-light);
   --text-secondary: var(--analysis-text-secondary-light);
-  --border: var(--analysis-border-light);
+  --border:         var(--analysis-border-light);
 }
 
-[data-theme="light"][data-stage="return"] {
-  --bg-primary: var(--return-bg-light);
-  --bg-secondary: var(--return-bg-light-secondary);
-  --text-primary: var(--return-text-primary-light);
+[data-theme="light"][data-stage="return"],
+[data-theme="light"] [data-stage="return"] {
+  --bg-primary:     var(--return-bg-light);
+  --bg-secondary:   var(--return-bg-light-secondary);
+  --text-primary:   var(--return-text-primary-light);
   --text-secondary: var(--return-text-secondary-light);
 }
 

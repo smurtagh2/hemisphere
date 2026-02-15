@@ -57,3 +57,6 @@ export {
   ProfileIcon,
 } from './BottomNav';
 export type { BottomNavProps, BottomNavItem } from './BottomNav';
+
+// ThemeToggle
+export { ThemeToggle } from './ThemeToggle';

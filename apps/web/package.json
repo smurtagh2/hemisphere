@@ -13,7 +13,11 @@
     "clean": "rm -rf .next tsconfig.tsbuildinfo"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hemisphere/shared": "workspace:*",
+    "framer-motion": "^12.34.0",
     "next": "^15.1.0",
     "posthog-js": "^1.347.2",
     "react": "^19.0.0",

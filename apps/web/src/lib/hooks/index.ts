@@ -10,3 +10,6 @@ export type {
   StageTransitionState,
   UseStageTransitionReturn,
 } from './useStageTransition';
+
+export { useTheme } from './useTheme';
+export type { Theme } from './useTheme';

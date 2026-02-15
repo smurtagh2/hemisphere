@@ -13,3 +13,4 @@ export * from './adaptive-selection';
 export * from './zombie-detection';
 export * from './learner-edge-cases';
 export * from './analytics-events';
+export * from './experiments';

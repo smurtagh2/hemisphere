@@ -6,6 +6,7 @@ import { sessionRoutes } from './routes/session.js';
 import { reviewRoutes } from './routes/review.js';
 import { learnerRoutes } from './routes/learner.js';
 import { scoringRoutes } from './routes/scoring.js';
+import { adminRoutes } from './routes/admin.js';
 import { authMiddleware, requireRole, requireAuth, type AppEnv } from './middleware/auth.js';
 
 const app = new Hono<AppEnv>();
@@ -22,6 +23,7 @@ app.route('/api/session', sessionRoutes);
 app.route('/api/review', reviewRoutes);
 app.route('/api/learner', learnerRoutes);
 app.route('/api/scoring', scoringRoutes);
+app.route('/api/admin', adminRoutes);
 
 // ─── Protected routes (authentication required) ───────────────────────────────
 
