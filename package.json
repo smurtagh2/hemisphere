@@ -15,7 +15,8 @@
     "validate-content:watch": "tsx scripts/validate-content.ts --watch",
     "validate-content:ci": "tsx scripts/validate-content.ts --ci --report=github",
     "db:seed": "tsx scripts/seed-content.ts",
-    "db:seed:dev": "tsx packages/db/src/seed.ts"
+    "db:seed:dev": "tsx packages/db/src/seed.ts",
+    "fsrs:optimize": "tsx scripts/optimize-fsrs.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

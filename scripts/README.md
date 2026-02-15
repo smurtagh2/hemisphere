@@ -158,6 +158,37 @@ For other CI systems, use the JSON report format:
 pnpm validate-content --report=json > validation-report.json
 ```
 
+## FSRS Optimization Batch Job
+
+The weekly FSRS optimization job updates per-learner `fsrs_parameters` based on
+their review history.
+
+### Usage
+
+Run optimization:
+
+```bash
+pnpm fsrs:optimize
+```
+
+Dry run (no database writes):
+
+```bash
+pnpm fsrs:optimize --dry-run
+```
+
+Custom thresholds:
+
+```bash
+pnpm fsrs:optimize --min-reviews=80 --limit=200
+```
+
+### Notes
+
+- Learners are eligible only if they meet `--min-reviews` (default: 50).
+- The script applies bounded heuristic adjustments to FSRS weights and target retention.
+- Writes are upserts into `fsrs_parameters` and set `optimized_at`.
+
 ## Development Workflow
 
 Recommended workflow for content authors:

@@ -8,4 +8,5 @@ export * from './utils';
 export * from './session-state-machine';
 export * from './session-state-reducer';
 export * from './fsrs';
+export * from './fsrs-optimization';
 export * from './adaptive-selection';
