@@ -1,0 +1,3 @@
+{
+  "allowedTools": ["Edit", "Write", "Bash", "Read", "Glob", "Grep", "NotebookEdit", "NotebookRead"]
+}
