@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
 import { db, schema } from '@hemisphere/db';
 import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
@@ -23,6 +23,23 @@ const loginSchema = z.object({
 const refreshSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
+
+const googleOAuthSchema = z.object({
+  idToken: z.string().min(1, 'Google ID token is required'),
+});
+
+const appleOAuthSchema = z.object({
+  idToken: z.string().min(1, 'Apple ID token is required'),
+  displayName: z.string().optional(),
+});
+
+// OAuth configuration
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID;
+
+// Remote JWKS sets (lazily initialised as module-level singletons)
+const googleJWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+const appleJWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
 // JWT configuration
 const JWT_SECRET = new TextEncoder().encode(
@@ -499,6 +516,212 @@ authRoutes.post('/logout', async (c) => {
         error: 'Internal server error',
         message: 'An error occurred during logout',
       },
+      500
+    );
+  }
+});
+
+/**
+ * POST /api/auth/oauth/google
+ * Authenticate with Google using an ID token from the Google Sign-In SDK.
+ *
+ * Body: { idToken: string }
+ *
+ * DB schema note: The users table does not yet have a `googleId` column.
+ * A future migration should add:
+ *   - googleId text UNIQUE (nullable)
+ * Until then, lookup is by email only.
+ */
+authRoutes.post('/oauth/google', async (c) => {
+  try {
+    const body = await c.req.json();
+    const result = googleOAuthSchema.safeParse(body);
+
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: result.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        },
+        400
+      );
+    }
+
+    const { idToken } = result.data;
+
+    let payload: Record<string, unknown>;
+    try {
+      const verifyOptions: Parameters<typeof jwtVerify>[2] = {
+        algorithms: ['RS256'],
+        issuer: ['https://accounts.google.com', 'accounts.google.com'],
+      };
+      if (GOOGLE_CLIENT_ID) {
+        verifyOptions.audience = GOOGLE_CLIENT_ID;
+      }
+      const verified = await jwtVerify(idToken, googleJWKS, verifyOptions);
+      payload = verified.payload as Record<string, unknown>;
+    } catch (err) {
+      console.error('Google token verification failed:', err);
+      return c.json(
+        { error: 'Invalid token', message: 'Google ID token verification failed' },
+        401
+      );
+    }
+
+    const email = payload['email'] as string | undefined;
+    const name =
+      (payload['name'] as string | undefined) ||
+      (payload['given_name'] as string | undefined) ||
+      'Google User';
+
+    if (!email) {
+      return c.json(
+        { error: 'Invalid token', message: 'Google token does not contain an email address' },
+        401
+      );
+    }
+
+    let [user] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+
+    if (!user) {
+      // OAuth users have no password — store sentinel empty string.
+      // A future migration adding oauthProvider + nullable passwordHash would be cleaner.
+      const [created] = await db
+        .insert(schema.users)
+        .values({ email, passwordHash: '', displayName: name, role: 'learner', isActive: true })
+        .returning();
+      user = created;
+    }
+
+    if (!user.isActive) {
+      return c.json({ error: 'Account disabled', message: 'Your account has been disabled' }, 403);
+    }
+
+    await db.update(schema.users).set({ lastLoginAt: new Date() }).where(eq(schema.users.id, user.id));
+
+    const accessToken = await generateAccessToken(user.id, user.email, user.role);
+    const refreshToken = await createRefreshToken(user.id);
+
+    return c.json({
+      message: 'Google login successful',
+      user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    console.error('Google OAuth error:', error);
+    return c.json(
+      { error: 'Internal server error', message: 'An error occurred during Google authentication' },
+      500
+    );
+  }
+});
+
+/**
+ * POST /api/auth/oauth/apple
+ * Authenticate with Sign in with Apple using an identity token.
+ *
+ * Body: { idToken: string, displayName?: string }
+ *
+ * Apple only sends the user's name on the very first sign-in, so displayName
+ * should be provided by the client on first sign-in and omitted thereafter.
+ *
+ * DB schema note: The users table does not yet have an `appleId` column.
+ * A future migration should add:
+ *   - appleId text UNIQUE (nullable)
+ * Apple's `sub` claim is the stable user identifier (not the email, which can
+ * be a relay address). Until that column exists, lookup falls back to email only.
+ */
+authRoutes.post('/oauth/apple', async (c) => {
+  try {
+    const body = await c.req.json();
+    const result = appleOAuthSchema.safeParse(body);
+
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: result.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        },
+        400
+      );
+    }
+
+    const { idToken, displayName: clientDisplayName } = result.data;
+
+    let applePayload: Record<string, unknown>;
+    try {
+      const verifyOptions: Parameters<typeof jwtVerify>[2] = {
+        algorithms: ['RS256'],
+        issuer: 'https://appleid.apple.com',
+      };
+      if (APPLE_CLIENT_ID) {
+        verifyOptions.audience = APPLE_CLIENT_ID;
+      }
+      const verified = await jwtVerify(idToken, appleJWKS, verifyOptions);
+      applePayload = verified.payload as Record<string, unknown>;
+    } catch (err) {
+      console.error('Apple token verification failed:', err);
+      return c.json(
+        { error: 'Invalid token', message: 'Apple identity token verification failed' },
+        401
+      );
+    }
+
+    const email = applePayload['email'] as string | undefined;
+
+    if (!email) {
+      return c.json(
+        { error: 'Invalid token', message: 'Apple token does not contain an email address' },
+        401
+      );
+    }
+
+    const displayName = clientDisplayName || email.split('@')[0] || 'Apple User';
+
+    let [user] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+
+    if (!user) {
+      const [created] = await db
+        .insert(schema.users)
+        .values({ email, passwordHash: '', displayName, role: 'learner', isActive: true })
+        .returning();
+      user = created;
+    }
+
+    if (!user.isActive) {
+      return c.json({ error: 'Account disabled', message: 'Your account has been disabled' }, 403);
+    }
+
+    await db.update(schema.users).set({ lastLoginAt: new Date() }).where(eq(schema.users.id, user.id));
+
+    const accessToken = await generateAccessToken(user.id, user.email, user.role);
+    const refreshToken = await createRefreshToken(user.id);
+
+    return c.json({
+      message: 'Apple login successful',
+      user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    console.error('Apple OAuth error:', error);
+    return c.json(
+      { error: 'Internal server error', message: 'An error occurred during Apple authentication' },
       500
     );
   }

@@ -10,3 +10,6 @@ export * from './session-state-reducer';
 export * from './fsrs';
 export * from './fsrs-optimization';
 export * from './adaptive-selection';
+export * from './zombie-detection';
+export * from './learner-edge-cases';
+export * from './analytics-events';

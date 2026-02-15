@@ -16,7 +16,8 @@
     "validate-content:ci": "tsx scripts/validate-content.ts --ci --report=github",
     "db:seed": "tsx scripts/seed-content.ts",
     "db:seed:dev": "tsx packages/db/src/seed.ts",
-    "fsrs:optimize": "tsx scripts/optimize-fsrs.ts"
+    "fsrs:optimize": "tsx scripts/optimize-fsrs.ts",
+    "zombie:detect": "tsx scripts/detect-zombie-items.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

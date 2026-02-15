@@ -5,3 +5,4 @@ export * from './content-items';
 export * from './sessions';
 export * from './knowledge-state';
 export * from './fsrs';
+export * from './remediation';

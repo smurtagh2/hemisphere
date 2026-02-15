@@ -189,6 +189,37 @@ pnpm fsrs:optimize --min-reviews=80 --limit=200
 - The script applies bounded heuristic adjustments to FSRS weights and target retention.
 - Writes are upserts into `fsrs_parameters` and set `optimized_at`.
 
+## Zombie Detection Batch Job
+
+Detects zombie items (pattern-matched recall without durable understanding) and
+queues remediation interventions.
+
+### Usage
+
+Run detection:
+
+```bash
+pnpm zombie:detect
+```
+
+Dry run:
+
+```bash
+pnpm zombie:detect --dry-run
+```
+
+Custom thresholds:
+
+```bash
+pnpm zombie:detect --threshold=0.55 --min-reviews=10 --limit=500
+```
+
+### Notes
+
+- Candidates default to review-state items with at least 8 reviews.
+- Flags are stored in `remediation_queue` with `detection_type='zombie_item'`.
+- Items that no longer meet the threshold are auto-dismissed.
+
 ## Development Workflow
 
 Recommended workflow for content authors:

@@ -731,13 +731,63 @@ sessionRoutes.post('/start', authMiddleware, async (c) => {
     const selectedAnalysisIds =
       adaptivePlan?.selectedItems.map((item) => item.itemId) ?? [];
 
-    const analysisIds =
+    const defaultAnalysisCap =
+      sessionType === 'quick' ? 8 : sessionType === 'extended' ? 28 : 16;
+
+    const baseAnalysisIds =
       selectedAnalysisIds.length > 0
         ? selectedAnalysisIds
-        : primaryAnalysisPool.map((item) => item.id).slice(
-            0,
-            sessionType === 'quick' ? 8 : sessionType === 'extended' ? 28 : 16
-          );
+        : primaryAnalysisPool.map((item) => item.id).slice(0, defaultAnalysisCap);
+
+    const remediationRows = await db
+      .select({ itemId: schema.remediationQueue.itemId })
+      .from(schema.remediationQueue)
+      .innerJoin(
+        schema.contentItems,
+        and(
+          eq(schema.remediationQueue.itemId, schema.contentItems.id),
+          eq(schema.contentItems.topicId, topicId),
+          eq(schema.contentItems.stage, 'analysis')
+        )
+      )
+      .where(
+        and(
+          eq(schema.remediationQueue.userId, user.id),
+          eq(schema.remediationQueue.status, 'pending'),
+          eq(schema.remediationQueue.detectionType, 'zombie_item')
+        )
+      )
+      .orderBy(sql`${schema.remediationQueue.zombieScore} DESC`, schema.remediationQueue.updatedAt);
+
+    const remediationAnalysisIds = remediationRows.map((row) => row.itemId);
+    const targetAnalysisCount = Math.max(
+      1,
+      selectedAnalysisIds.length > 0 ? baseAnalysisIds.length : defaultAnalysisCap
+    );
+    const analysisIds = dedupeIds([...remediationAnalysisIds, ...baseAnalysisIds]).slice(
+      0,
+      targetAnalysisCount
+    );
+
+    const remediationScheduledIds = remediationAnalysisIds.filter((id) =>
+      analysisIds.includes(id)
+    );
+    if (remediationScheduledIds.length > 0) {
+      await db
+        .update(schema.remediationQueue)
+        .set({
+          status: 'in_progress',
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.remediationQueue.userId, user.id),
+            eq(schema.remediationQueue.status, 'pending'),
+            eq(schema.remediationQueue.detectionType, 'zombie_item'),
+            sql`${schema.remediationQueue.itemId} = ANY(${remediationScheduledIds}::uuid[])`
+          )
+        );
+    }
 
     const reflectionId =
       returnPool.find((item) => item.itemType === 'reflection_prompt')?.id ??
@@ -1347,6 +1397,49 @@ sessionRoutes.post('/complete', authMiddleware, async (c) => {
     const totalItems = events.length;
     const correct = events.filter((e) => e.isCorrect === true).length;
     const accuracy = totalItems > 0 ? correct / totalItems : null;
+
+    // Track per-item correctness for remediation status updates.
+    const itemOutcomeMap = new Map<string, { attempts: number; correct: number }>();
+    for (const event of events) {
+      const current = itemOutcomeMap.get(event.contentItemId) ?? { attempts: 0, correct: 0 };
+      current.attempts += 1;
+      if (event.isCorrect === true) current.correct += 1;
+      itemOutcomeMap.set(event.contentItemId, current);
+    }
+
+    const touchedItemIds = [...itemOutcomeMap.keys()];
+    if (touchedItemIds.length > 0) {
+      const remediationRows = await db
+        .select({
+          id: schema.remediationQueue.id,
+          itemId: schema.remediationQueue.itemId,
+          status: schema.remediationQueue.status,
+        })
+        .from(schema.remediationQueue)
+        .where(
+          and(
+            eq(schema.remediationQueue.userId, user.id),
+            eq(schema.remediationQueue.detectionType, 'zombie_item'),
+            sql`${schema.remediationQueue.itemId} = ANY(${touchedItemIds}::uuid[])`
+          )
+        );
+
+      for (const remediation of remediationRows) {
+        const outcome = itemOutcomeMap.get(remediation.itemId);
+        if (!outcome || outcome.attempts === 0) continue;
+        const itemAccuracy = outcome.correct / outcome.attempts;
+        const resolved = itemAccuracy >= 0.6;
+
+        await db
+          .update(schema.remediationQueue)
+          .set({
+            status: resolved ? 'resolved' : 'pending',
+            resolvedAt: resolved ? new Date() : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.remediationQueue.id, remediation.id));
+      }
+    }
 
     // ── 5. Aggregate per-KC scores ──────────────────────────────────────────
     type KcAgg = {
