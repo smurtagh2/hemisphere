@@ -1,0 +1,335 @@
+schemaVersion: '1.0'
+
+topics:
+  - id: photosynthesis-and-energy
+    version: 1.0.0
+    metadata:
+      title: How Plants Turn Light into Life
+      subtitle: The chemistry that powers almost every food web on Earth
+      summary: Understand how sunlight, water, and carbon dioxide become glucose and oxygen, then apply the model to ecosystems and climate.
+      subject: biology
+      template: conceptual
+      targetAudience: general
+      estimatedDuration: 16
+      prerequisites: []
+      tags:
+        - biology
+        - photosynthesis
+        - energy
+        - ecosystems
+      authors:
+        - name: Hemisphere Content Team
+          role: author
+      createdAt: '2026-02-15T00:00:00Z'
+      updatedAt: '2026-02-15T00:00:00Z'
+
+    learningObjectives:
+      - id: obj-1
+        objective: State the overall photosynthesis equation and identify inputs and outputs
+        bloom: remember
+      - id: obj-2
+        objective: Distinguish light-dependent reactions from the Calvin cycle
+        bloom: understand
+      - id: obj-3
+        objective: Trace how plant energy capture supports food webs
+        bloom: analyze
+      - id: obj-4
+        objective: Apply photosynthesis constraints to explain ecosystem outcomes
+        bloom: apply
+
+    stages:
+      encounter:
+        stage: encounter
+        name: The Encounter
+        description: Feel the scale and importance of photosynthesis before formal decomposition
+        estimatedDuration: 240
+        uiTheme:
+          colorPalette: warm_immersive
+          typography: serif_narrative
+          layout: expansive
+          timing: untimed
+        transition:
+          type: crossfade
+          duration: 1.5
+          bridgeText: Let's break this process into the two major reaction systems.
+          hapticCue: pulse
+        contentItems:
+          - id: enc-hook
+            type: narrative
+            title: The Invisible Factory
+            content: |
+              Every leaf is a biochemical factory running on sunlight.
+
+              No batteries. No wires. No factory workers. Yet this process feeds forests, oceans, and cities.
+            duration: 45
+            media:
+              - type: image
+                url: https://assets.hemisphere.app/images/leaf-veins-macro.jpg
+                alt: Macro photograph of leaf veins lit by morning sunlight
+            layout: full_bleed
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+              difficulty: novice
+
+          - id: enc-narrative
+            type: narrative
+            title: A Planet-Wide Conversion
+            content: |
+              Plants and algae capture photons and use them to build sugar from carbon dioxide and water.
+
+              The sugar stores chemical energy. The oxygen becomes breathable atmosphere for many organisms, including us.
+            duration: 80
+            interactions:
+              - id: enc-prediction
+                type: prediction
+                prompt: If sunlight drops for months in one region, what downstream effects would you expect in that ecosystem?
+                feedback:
+                  general: Keep your prediction. We will test it after the analysis stage.
+                allowSkip: true
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          - id: enc-map
+            type: spatial_map
+            title: The Energy Route
+            content: Light enters chloroplasts, energy is stored in sugar, and sugar moves through food webs.
+            duration: 55
+            media:
+              - type: interactive
+                url: https://assets.hemisphere.app/interactive/photosynthesis-energy-map.json
+                alt: Concept map linking chloroplasts, ATP, glucose, and food webs
+            layout: spatial
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+      analysis:
+        stage: analysis
+        name: The Analysis
+        description: Build a precise model of the photosynthesis mechanism
+        estimatedDuration: 500
+        uiTheme:
+          colorPalette: cool_focused
+          typography: sans_structured
+          layout: grid
+          timing: paced
+        transition:
+          type: shift
+          duration: 2
+          bridgeText: Return to ecosystems and evaluate what the model predicts.
+          hapticCue: none
+        contentItems:
+          - id: ana-equation
+            type: concept_card
+            title: Overall Equation
+            content: |
+              A simplified photosynthesis equation is:
+
+              **6CO2 + 6H2O + light energy -> C6H12O6 + 6O2**
+
+              Carbon dioxide and water are inputs. Glucose and oxygen are products.
+            duration: 100
+            media:
+              - type: image
+                url: https://assets.hemisphere.app/images/photosynthesis-equation-diagram.svg
+                alt: Diagram of photosynthesis equation showing inputs and outputs
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          - id: ana-two-stages
+            type: concept_card
+            title: Two Reaction Systems
+            content: |
+              **Light-dependent reactions** capture photon energy and produce ATP and NADPH.
+
+              The **Calvin cycle** uses ATP, NADPH, and carbon dioxide to synthesize sugar molecules.
+            duration: 110
+            media:
+              - type: image
+                url: https://assets.hemisphere.app/images/chloroplast-light-calvin-diagram.svg
+                alt: Chloroplast diagram with thylakoid light reactions and Calvin cycle in stroma
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          - id: ana-practice
+            type: practice
+            title: Retrieval and Discrimination
+            content: Practice the mechanism until it is explainable without notes.
+            duration: 190
+            interactions:
+              - id: ana-free-recall
+                type: free_recall
+                prompt: What are the products of photosynthesis, and where does their energy ultimately come from?
+                correctAnswer:
+                  - glucose
+                  - oxygen
+                  - sunlight
+                feedback:
+                  correct: Correct. Glucose stores energy originally captured from light; oxygen is released.
+                  incorrect: "Include both products and the energy source: glucose, oxygen, and sunlight."
+                tags:
+                  - photosynthesis-equation
+                  - energy-conversion
+
+              - id: ana-mcq
+                type: multiple_choice
+                prompt: Which statement best distinguishes light reactions from the Calvin cycle?
+                options:
+                  - id: a
+                    text: Light reactions create ATP/NADPH; Calvin cycle uses them to build sugars.
+                    isCorrect: true
+                  - id: b
+                    text: Light reactions consume sugars; Calvin cycle releases photons.
+                    isCorrect: false
+                  - id: c
+                    text: Both happen only in roots and do not require chloroplasts.
+                    isCorrect: false
+                  - id: d
+                    text: Calvin cycle produces sunlight, which powers light reactions.
+                    isCorrect: false
+                correctAnswer: a
+                feedback:
+                  correct: Exactly. The first stage captures energy; the second spends that energy to fix carbon.
+                  incorrect: "Keep the division clear: capture energy first, carbon fixation second."
+                tags:
+                  - light-reactions
+                  - calvin-cycle
+                  - energy-conversion
+
+              - id: ana-drag-drop
+                type: drag_drop
+                prompt: Match each item to Input or Output of the overall equation.
+                options:
+                  - id: co2
+                    text: Carbon dioxide
+                  - id: h2o
+                    text: Water
+                  - id: glucose
+                    text: Glucose
+                  - id: oxygen
+                    text: Oxygen
+                correctAnswer:
+                  - co2
+                  - h2o
+                  - glucose
+                  - oxygen
+                feedback:
+                  general: Inputs are CO2 and H2O; outputs are glucose and O2. Light drives the conversion.
+                tags:
+                  - photosynthesis-equation
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: intermediate
+
+      return:
+        stage: return
+        name: The Return
+        description: Reconnect cellular chemistry to ecosystems and human decisions
+        estimatedDuration: 220
+        uiTheme:
+          colorPalette: reflective_open
+          typography: serif_narrative
+          layout: open
+          timing: flexible
+        transition:
+          type: gentle
+          duration: 0
+          bridgeText: ''
+          hapticCue: none
+        contentItems:
+          - id: ret-reconnect
+            type: narrative
+            title: Leaf to Food Web
+            content: |
+              Photosynthesis is the entry point for most energy in ecosystems.
+
+              Every herbivore, predator, and decomposer is downstream of this conversion.
+            duration: 60
+            layout: card
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          - id: ret-transfer
+            type: activity
+            title: Transfer Challenge
+            content: Apply the model to environmental change.
+            duration: 100
+            interactions:
+              - id: ret-transfer-1
+                type: transfer_challenge
+                prompt: A region experiences long-term smoke cover from wildfires. Predict likely effects on plant growth and then on animal populations.
+                modelAnswer: |
+                  Reduced sunlight lowers light-reaction throughput, reducing ATP/NADPH production and carbon fixation. Plants synthesize less glucose, so biomass production declines. Herbivores face lower food availability first, followed by predator declines through the food web.
+                feedback:
+                  general: Strong answers link sunlight limits to energy capture, then trace second-order ecosystem effects.
+                tags:
+                  - light-reactions
+                  - ecosystem-transfer
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          - id: ret-reflect
+            type: reflection_prompt
+            title: Reframing the Ordinary
+            content: Revisit your opening prediction with the mechanism now in hand.
+            duration: 60
+            interactions:
+              - id: ret-reflection-1
+                type: reflection
+                prompt: What changed in your mental model of where food and oxygen come from?
+                feedback:
+                  general: If your model now begins with energy capture at leaves, the core shift has happened.
+                tags:
+                  - ecosystem-transfer
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+    knowledgeGraph:
+      nodes:
+        - id: photosynthesis-equation
+          label: Photosynthesis Equation
+          type: fact
+        - id: chloroplast
+          label: Chloroplast Structure
+          type: concept
+        - id: light-reactions
+          label: Light-Dependent Reactions
+          type: concept
+        - id: calvin-cycle
+          label: Calvin Cycle
+          type: concept
+        - id: energy-conversion
+          label: Energy Conversion
+          type: concept
+        - id: ecosystem-transfer
+          label: Ecosystem Energy Transfer
+          type: relationship
+      edges:
+        - from: chloroplast
+          to: light-reactions
+          relationship: part_of
+        - from: light-reactions
+          to: calvin-cycle
+          relationship: prerequisite
+        - from: photosynthesis-equation
+          to: energy-conversion
+          relationship: related
+        - from: energy-conversion
+          to: ecosystem-transfer
+          relationship: example_of

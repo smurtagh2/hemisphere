@@ -1,0 +1,340 @@
+schemaVersion: '1.0'
+
+topics:
+  - id: darwins-dangerous-idea
+    version: 1.0.0
+    metadata:
+      title: Darwin's Dangerous Idea
+      subtitle: How simple selection explains the diversity of life
+      summary: Follow Darwin's trail from Galapagos finches to the mechanism of natural selection, then use the model to explain modern antibiotic resistance.
+      subject: biology
+      template: narrative_historical
+      targetAudience: general
+      estimatedDuration: 17
+      prerequisites: []
+      tags:
+        - biology
+        - evolution
+        - natural-selection
+        - darwin
+      authors:
+        - name: Hemisphere Content Team
+          role: author
+      createdAt: '2026-02-15T00:00:00Z'
+      updatedAt: '2026-02-15T00:00:00Z'
+
+    learningObjectives:
+      - id: obj-1
+        objective: Describe the three conditions required for natural selection
+        bloom: understand
+      - id: obj-2
+        objective: Differentiate heritable and non-heritable variation
+        bloom: analyze
+      - id: obj-3
+        objective: Explain why differential reproduction drives adaptation
+        bloom: analyze
+      - id: obj-4
+        objective: Apply natural selection to antibiotic resistance
+        bloom: apply
+
+    stages:
+      encounter:
+        stage: encounter
+        name: The Encounter
+        description: Enter Darwin's story and feel why the idea was disruptive
+        estimatedDuration: 260
+        uiTheme:
+          colorPalette: warm_immersive
+          typography: serif_narrative
+          layout: expansive
+          timing: untimed
+        transition:
+          type: crossfade
+          duration: 1.5
+          bridgeText: Let's unpack the mechanism behind Darwin's insight.
+          hapticCue: pulse
+        contentItems:
+          - id: enc-hook
+            type: narrative
+            title: The Bird That Changed Everything
+            content: |
+              In 1835, Darwin noticed that finches on neighboring islands had different beaks.
+
+              The differences were small. The implications were not.
+
+              If one ancestral bird could become many forms, species might not be fixed at all.
+            duration: 50
+            media:
+              - type: image
+                url: https://assets.hemisphere.app/images/darwin-finch-closeup.jpg
+                alt: Close-up of a finch on volcanic rock with ocean in the background
+            layout: full_bleed
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+              difficulty: novice
+
+          - id: enc-narrative
+            type: narrative
+            title: A Long Delay
+            content: |
+              Darwin returned to England with specimens and a troubling hypothesis.
+
+              If variation is inherited, and environments reward some traits over others, populations can change without a designer or plan.
+
+              He delayed publication for years because he knew this idea would challenge assumptions about life, purpose, and humanity.
+            duration: 90
+            interactions:
+              - id: enc-prediction
+                type: prediction
+                prompt: Before analysis, what process could turn one bird population into many specialized forms?
+                feedback:
+                  general: Hold your hypothesis. We will test it against Darwin's mechanism in the next stage.
+                allowSkip: true
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          - id: enc-overview
+            type: spatial_map
+            title: The Mechanism at a Glance
+            content: Variation + selection pressure + differential reproduction + time = adaptation.
+            duration: 60
+            media:
+              - type: interactive
+                url: https://assets.hemisphere.app/interactive/natural-selection-map.json
+                alt: Concept map linking variation, selection pressure, reproduction, and adaptation
+            layout: spatial
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+      analysis:
+        stage: analysis
+        name: The Analysis
+        description: Decompose natural selection into explicit parts and test understanding
+        estimatedDuration: 520
+        uiTheme:
+          colorPalette: cool_focused
+          typography: sans_structured
+          layout: grid
+          timing: paced
+        transition:
+          type: shift
+          duration: 2
+          bridgeText: Bring the mechanism back to a real modern problem.
+          hapticCue: none
+        contentItems:
+          - id: ana-variation
+            type: concept_card
+            title: Variation and Heritability
+            content: |
+              Natural selection starts with **differences among individuals**.
+
+              Those differences matter only when they are heritable. A scar is not inherited; a genetically influenced beak shape is.
+            duration: 110
+            media:
+              - type: image
+                url: https://assets.hemisphere.app/images/finch-beak-variation-diagram.svg
+                alt: Several finches with visibly different beak shapes and sizes
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          - id: ana-selection
+            type: concept_card
+            title: Selection Pressure and Differential Reproduction
+            content: |
+              Environments favor some variants over others.
+
+              Individuals with advantageous traits survive and reproduce more often. Over generations, trait frequencies shift.
+            duration: 110
+            media:
+              - type: image
+                url: https://assets.hemisphere.app/images/selection-pressure-seed-cracking.svg
+                alt: Thick-beaked finch cracking a hard seed while thin-beaked finch cannot
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: novice
+
+          - id: ana-practice
+            type: practice
+            title: Retrieval Practice
+            content: Test whether you can apply the mechanism, not just repeat terms.
+            duration: 180
+            interactions:
+              - id: ana-free-recall-1
+                type: free_recall
+                prompt: Name the three required conditions for natural selection.
+                correctAnswer:
+                  - variation
+                  - heritability
+                  - differential reproduction
+                feedback:
+                  correct: Correct. Selection needs variation, inheritance, and uneven reproductive success.
+                  incorrect: "Look for three pieces: heritable variation, pressure from environment, and unequal reproduction."
+                tags:
+                  - variation
+                  - heritability
+                  - differential-reproduction
+
+              - id: ana-mcq-1
+                type: multiple_choice
+                prompt: Which statement best explains why resistant bacteria become common?
+                options:
+                  - id: opt-a
+                    text: Bacteria intentionally adapt when they need to survive.
+                    isCorrect: false
+                  - id: opt-b
+                    text: Antibiotics create heritable variation directly in every bacterium.
+                    isCorrect: false
+                  - id: opt-c
+                    text: Resistant variants already present survive treatment and leave more offspring.
+                    isCorrect: true
+                  - id: opt-d
+                    text: Survivors become resistant during their lifetime and pass that acquired trait on.
+                    isCorrect: false
+                correctAnswer: opt-c
+                feedback:
+                  correct: Correct. Selection acts on existing variation and changes population composition.
+                  incorrect: Natural selection does not require intention; it filters existing variation by survival and reproduction.
+                tags:
+                  - selection-pressure
+                  - differential-reproduction
+                  - adaptation
+
+              - id: ana-sequencing-1
+                type: sequencing
+                prompt: Order this process from start to finish.
+                options:
+                  - id: s1
+                    text: Population contains heritable variation
+                  - id: s2
+                    text: Environment creates selection pressure
+                  - id: s3
+                    text: Some variants reproduce more than others
+                  - id: s4
+                    text: Trait frequency shifts across generations
+                correctAnswer:
+                  - s1
+                  - s2
+                  - s3
+                  - s4
+                feedback:
+                  correct: Yes. This sequence is the core causal chain.
+                  incorrect: Start with variation, then pressure, then differential reproduction, then population change.
+                tags:
+                  - variation
+                  - selection-pressure
+                  - adaptation
+            layout: card
+            emotionalTone: focus
+            metadata:
+              hemisphere: LH
+              difficulty: intermediate
+
+      return:
+        stage: return
+        name: The Return
+        description: Reconnect to Darwin's story and transfer the model to current dilemmas
+        estimatedDuration: 240
+        uiTheme:
+          colorPalette: reflective_open
+          typography: serif_narrative
+          layout: open
+          timing: flexible
+        transition:
+          type: gentle
+          duration: 0
+          bridgeText: ''
+          hapticCue: none
+        contentItems:
+          - id: ret-reconnect
+            type: narrative
+            title: Seeing the Finch Again
+            content: |
+              The finch is no longer just a bird.
+
+              It is evidence that blind selection can produce exquisite fit between organism and environment over deep time.
+            duration: 60
+            layout: card
+            emotionalTone: wonder
+            metadata:
+              hemisphere: RH
+
+          - id: ret-transfer
+            type: activity
+            title: Transfer Challenge
+            content: Apply natural selection to a modern public health problem.
+            duration: 110
+            interactions:
+              - id: ret-transfer-1
+                type: transfer_challenge
+                prompt: Explain, step by step, how antibiotic overuse accelerates resistant strains in hospitals.
+                modelAnswer: |
+                  Bacterial populations include random heritable variation. Antibiotics create strong selection pressure by killing susceptible cells. Resistant variants survive and reproduce rapidly. Repeated antibiotic use repeats this filter, increasing resistant frequency each cycle.
+                feedback:
+                  general: Strong responses explicitly name variation, pressure, differential reproduction, and multi-generation frequency shifts.
+                tags:
+                  - variation
+                  - selection-pressure
+                  - differential-reproduction
+                  - adaptation
+            layout: card
+            emotionalTone: curiosity
+            metadata:
+              hemisphere: RH
+
+          - id: ret-reflect
+            type: reflection_prompt
+            title: What Changed in Your View?
+            content: Reflect on how your explanation differs from your initial intuition.
+            duration: 70
+            interactions:
+              - id: ret-reflection-1
+                type: reflection
+                prompt: What part of natural selection still feels counterintuitive, and why?
+                feedback:
+                  general: Productive confusion is expected. Focus on causal sequence rather than slogans.
+                tags:
+                  - adaptation
+            layout: card
+            emotionalTone: reflection
+            metadata:
+              hemisphere: RH
+
+    knowledgeGraph:
+      nodes:
+        - id: variation
+          label: Variation
+          type: concept
+        - id: heritability
+          label: Heritability
+          type: concept
+        - id: selection-pressure
+          label: Selection Pressure
+          type: relationship
+        - id: differential-reproduction
+          label: Differential Reproduction
+          type: relationship
+        - id: adaptation
+          label: Adaptation
+          type: concept
+      edges:
+        - from: variation
+          to: heritability
+          relationship: related
+        - from: heritability
+          to: selection-pressure
+          relationship: prerequisite
+        - from: selection-pressure
+          to: differential-reproduction
+          relationship: prerequisite
+        - from: differential-reproduction
+          to: adaptation
+          relationship: part_of
